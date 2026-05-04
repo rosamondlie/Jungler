@@ -11,7 +11,7 @@ import SwiftUI
 struct Tre_a_ckerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView()
         }
     }
 }
