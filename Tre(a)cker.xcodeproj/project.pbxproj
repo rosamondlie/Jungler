@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		1F5CAD492FA43794003790DF /* Tre(a)cker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Tre(a)cker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F5CADDA2FA8693F003790DF /* Tre(a)cker.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Tre(a)cker.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +33,7 @@
 		1F5CAD402FA43794003790DF = {
 			isa = PBXGroup;
 			children = (
+				1F5CADDA2FA8693F003790DF /* Tre(a)cker.xcodeproj */,
 				1F5CAD4B2FA43794003790DF /* Tre(a)cker */,
 				1F5CAD4A2FA43794003790DF /* Products */,
 			);
@@ -42,6 +44,11 @@
 			children = (
 				1F5CAD492FA43794003790DF /* Tre(a)cker.app */,
 			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1F5CADDB2FA8693F003790DF /* Products */ = {
+			isa = PBXGroup;
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -97,6 +104,12 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1F5CAD4A2FA43794003790DF /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 1F5CADDB2FA8693F003790DF /* Products */;
+					ProjectRef = 1F5CADDA2FA8693F003790DF /* Tre(a)cker.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				1F5CAD482FA43794003790DF /* Tre(a)cker */,
