@@ -1,25 +1,25 @@
+////
+////  ContentView.swift
+////  Tre(a)cker
+////
+////  Created by Rosamond Patricia Selamat Lie on 01/05/26.
+////
 //
-//  ContentView.swift
-//  Tre(a)cker
+//import SwiftUI
 //
-//  Created by Rosamond Patricia Selamat Lie on 01/05/26.
+//struct ContentView: View {
+//    var body: some View {
+//        VStack {
+//            Image(systemName: "globe")
+//                .imageScale(.large)
+//                .foregroundStyle(.tint)
+//            Text("Anna!")
+//        }
+//        .padding()
+//    }
+//}
 //
-
-import SwiftUI
-
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Anna!")
-        }
-        .padding()
-    }
-}
-
-#Preview {
-    ContentView()
-}
-
+//#Preview {
+//    ContentView()
+//}
+//

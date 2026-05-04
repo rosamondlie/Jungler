@@ -13,12 +13,14 @@ struct Location: Identifiable{
     var name: String
     var coordinate: CLLocationCoordinate2D
     var timestamp: Date = Date()
+    var altitude: Double
     
-    init (id: UUID = UUID(), name: String, coordinate : CLLocationCoordinate2D, timestamp: Date = Date()) {
+    init (id: UUID = UUID(), name: String, coordinate : CLLocationCoordinate2D, timestamp: Date = Date(), altitude: Double) {
         self.id = id
         self.name = name
         self.coordinate = coordinate
         self.timestamp = timestamp
+        self.altitude = altitude
     }
 }
 

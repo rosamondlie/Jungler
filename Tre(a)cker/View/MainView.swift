@@ -52,6 +52,7 @@ struct MainView: View {
                 }
                 
             }
+            .mapStyle(.standard(elevation: .realistic))
             .mapControls{
                 MapUserLocationButton()
                 MapCompass()
@@ -64,12 +65,7 @@ struct MainView: View {
                     mapPosition = .region(MKCoordinateRegion(center: coordinate, latitudinalMeters: 1300, longitudinalMeters: 1300))
                 }
             }
-//            Button(action: createAnnotation) {
-//                    Label("Pin Location", systemImage: "plus")
-//                }
-//            .buttonStyle(.borderedProminent)
-//            .position(x: 100, y: 700)
-            
+
             VStack{
                 Spacer()
                 HStack(spacing: 16) {
@@ -142,9 +138,10 @@ struct MainView: View {
     }
     
     func createAnnotation(){
-        if let coordinate = locationManager.location?.coordinate {
+        if let coordinate = locationManager.location?.coordinate{
             print(coordinate) // tes ambil koor
-            let newLocation = Location(name: "PIN" + String(locations.count + 1), coordinate: coordinate)
+            let newLocation = Location(name: "PIN" + String(locations.count + 1), coordinate: coordinate, altitude: locationManager.location?.altitude ?? 0)
+            print(newLocation.altitude)
             print(newLocation.name) // tes print nama tiitk
             locations.append(newLocation)
             pinCounter += 1
@@ -165,37 +162,32 @@ struct MainView: View {
         }
     }
     
-    //kalau sesuai tutor yt buat dapet belokannya dan jalan terdekat
-//    func getDirections(to destination: CLLocationCoordinate2D) {
-//        Task {
-//            guard let userLocation = await getUserLocation() else { return }
-//            
-//            let request = MKDirections.Request()
-//            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLocation))
-//            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination))
-//            request.transportType = .walking
-//            
-//            do {
-//                let directions = try await MKDirections(request: request).calculate()
-//                route = directions.routes.first
-//                }
-//            catch {
-//                print("Error getting directions: \(error)")
-//            }
-//            }
-//        }
-    
-    // kalau mau get direction dari cur loc ke SATU titik terpilih
-//    func getDirections(to destination: CLLocationCoordinate2D) {
+//    func getDirections(to destination: Location) {
 //        Task {
 //            for try await update in CLLocationUpdate.liveUpdates() {
+//
 //                guard let userCoordinate = update.location?.coordinate else { continue }
 //
 //                await MainActor.run {
-//                    straightLineCoordinates = [
-//                        userCoordinate,
-//                        destination
-//                    ]
+//
+//                    let remainingPins = locations
+//                        .filter { $0.id != destination.id }
+//                        .sorted { $0.timestamp > $1.timestamp }
+//
+//                    var routeCoordinates: [CLLocationCoordinate2D] = []
+//
+//                    routeCoordinates.append(userCoordinate)
+//
+//                    for pin in remainingPins {
+//
+//                        if !isNear(userCoordinate, pin.coordinate) {
+//                            routeCoordinates.append(pin.coordinate)
+//                        }
+//                    }
+//
+//                    routeCoordinates.append(destination.coordinate)
+//
+//                    straightLineCoordinates = routeCoordinates
 //                }
 //            }
 //        }
@@ -204,26 +196,29 @@ struct MainView: View {
     func getDirections(to destination: Location) {
         Task {
             for try await update in CLLocationUpdate.liveUpdates() {
-
                 guard let userCoordinate = update.location?.coordinate else { continue }
 
                 await MainActor.run {
+                    // Remove pins the user has already reached
+                    locations.removeAll { isNear(userCoordinate, $0.coordinate) }
 
-                    let remainingPins = locations
-                        .filter { $0.id != destination.id }
-                        .sorted { $0.timestamp > $1.timestamp }
-
-                    var routeCoordinates: [CLLocationCoordinate2D] = []
-
-                    routeCoordinates.append(userCoordinate)
-
-                    for pin in remainingPins {
-
-                        if !isNear(userCoordinate, pin.coordinate) {
-                            routeCoordinates.append(pin.coordinate)
-                        }
+                    // Find destination in the list
+                    guard let destIndex = locations.firstIndex(where: { $0.id == destination.id }) else {
+                        straightLineCoordinates = []
+                        return
                     }
 
+                    // Retrace: from current location, go through pins AFTER destination
+                    // in descending order (newest first), then arrive at destination
+                    // e.g. pins = [pin1, pin2, pin3, pin4, pin5], destination = pin3
+                    // waypoints = [pin5, pin4] then pin3
+                    let waypoints = locations[(destIndex + 1)...]
+                        .sorted { $0.timestamp > $1.timestamp } // pin5 → pin4
+
+                    var routeCoordinates: [CLLocationCoordinate2D] = [userCoordinate]
+                    for pin in waypoints {
+                        routeCoordinates.append(pin.coordinate)
+                    }
                     routeCoordinates.append(destination.coordinate)
 
                     straightLineCoordinates = routeCoordinates
