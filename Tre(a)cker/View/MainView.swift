@@ -27,226 +27,241 @@ struct MainView: View {
 
     // ── Route line ──
     @State private var straightLineCoordinates: [CLLocationCoordinate2D] = []
-    @State private var routeTask: Task<Void, Never>? = nil
-
-    // ── Navigation ──
-    @State private var navigatingTo: Location?
-
-    // ── UI ──
-    @State private var showSavedMarks = false
-
+    
+    @State private var showSavedMarks: Bool = false
+    
+    @State private var pinCounter: Int = 0
+    
+    @State private var isTracking = false
+    
     var body: some View {
         ZStack {
-            mapLayer
-            overlayButtons
-        }
-        .sheet(isPresented: $showSavedMarks) {
-            SavedMarksView(
-                locations: $locations,
-                isPresented: $showSavedMarks,
-                onNavigate: { location in
-                    startNavigation(to: location)
-                },
-                userLocation: tracker.userLocation
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            .ignoresSafeArea()
-        }
-        .fullScreenCover(item: $navigatingTo) { destination in
-            CompassNavigationView(
-                destination: destination,
-                onEndNavigation: { endNavigation() }
-            )
-        }
-        .onAppear(perform: requestLocationAndCenter)
-    }
+            Map(position: $mapPosition) {
+                if !locations.isEmpty {
+                    ForEach(locations) { location in
+                        Annotation(location.name, coordinate: location.coordinate, anchor: .center){
+                            Text(location.emoji)
+                                .font(.system(size: 20))
+                                .padding(8)
+                                .background(.black)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(.blue, lineWidth: 1)
+                                )
+                                .shadow(radius: 3)
+                                .contextMenu{
+                                    Text(location.name) // ini jadi header
 
-    // ─────────────────────────────────────────────
-    // MARK: - Map Layer
-    // ─────────────────────────────────────────────
-
-    private var mapLayer: some View {
-        Map(position: $mapPosition) {
-            ForEach(locations) { location in
-                Annotation(location.name, coordinate: location.coordinate, anchor: .center) {
-                    PinAnnotationView(emoji: location.emoji)
-                }
-            }
-            UserAnnotation()
-            if !straightLineCoordinates.isEmpty {
-                MapPolyline(coordinates: straightLineCoordinates)
-                    .stroke(.blue, lineWidth: 4)
-            }
-        }
-        .mapStyle(.standard(elevation: .realistic))
-        .preferredColorScheme(.dark)
-        .mapControls {
-            MapUserLocationButton()
-            MapCompass()
-            MapPitchToggle()
-            MapScaleView()
-        }
-    }
-
-    // ─────────────────────────────────────────────
-    // MARK: - Overlay Buttons
-    // ─────────────────────────────────────────────
-
-    private var overlayButtons: some View {
-        VStack {
-            Spacer()
-            HStack(spacing: 16) {
-                savedMarksButton
-                addMarkButton
-                navigateButton
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 36)
-        }
-    }
-
-    private var savedMarksButton: some View {
-        ZStack(alignment: .topTrailing) {
-            CircleIconButton(icon: "flag", color: .blue) {
-                showSavedMarks.toggle()
-            }
-            if !locations.isEmpty {
-                Text("\(locations.count)")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(4)
-                    .background(Color.orange)
-                    .clipShape(Circle())
-                    .offset(x: 4, y: -4)
-            }
-        }
-    }
-
-    private var addMarkButton: some View {
-        Button(action: addCurrentLocationPin) {
-            Text("ADD MARK")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.orange)
-                .cornerRadius(14)
-        }
-    }
-
-    private var navigateButton: some View {
-        CircleIconButton(icon: "location.fill", color: .blue) {
-            if let last = locations.last {
-                startNavigation(to: last)
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────────
-    // MARK: - Actions
-    // ─────────────────────────────────────────────
-
-    private func requestLocationAndCenter() {
-        tracker.startTracking()
-        if let coordinate = tracker.userLocation?.coordinate {
-            mapPosition = .region(MKCoordinateRegion(
-                center:             coordinate,
-                latitudinalMeters:  MapConfig.defaultSpan,
-                longitudinalMeters: MapConfig.defaultSpan
-            ))
-        }
-    }
-
-    private func addCurrentLocationPin() {
-        guard let location = tracker.currentLocation() else {
-            print("[AddMark] Lokasi belum tersedia")
-            return
-        }
-        let newPin = Location(
-            name:       MapConfig.pinNamePrefix + "\(locations.count + 1)",
-            coordinate: location.coordinate,
-            altitude:   location.altitude,
-            emoji:      MapConfig.pinEmoji
-        )
-        locations.append(newPin)
-    }
-
-    private func startNavigation(to destination: Location) {
-        routeTask?.cancel()
-        drawRouteLine(to: destination)
-        navigatingTo = destination
-    }
-
-    private func endNavigation() {
-        routeTask?.cancel()
-        routeTask = nil
-        straightLineCoordinates = []
-        navigatingTo = nil
-    }
-
-    private func drawRouteLine(to destination: Location) {
-        routeTask = Task {
-            do {
-                for try await update in CLLocationUpdate.liveUpdates() {
-                    if Task.isCancelled { break }
-                    guard let userCoord = update.location?.coordinate else { continue }
-                    await MainActor.run {
-                        guard !Task.isCancelled else { return }
-                        guard let destIndex = locations.firstIndex(where: { $0.id == destination.id }) else {
-                            straightLineCoordinates = []
-                            return
+                                    Button("Get Direction") {
+                                        getDirections(to: location)
+                                    }
+                                }
+                                
                         }
-                        let waypoints = locations[(destIndex + 1)...]
-                            .sorted { $0.timestamp > $1.timestamp }
-                        straightLineCoordinates = [userCoord]
-                            + waypoints.map(\.coordinate)
-                            + [destination.coordinate]
                     }
                 }
-            } catch { }
+                
+                UserAnnotation()
+                
+                if !straightLineCoordinates.isEmpty {
+                    MapPolyline(coordinates: straightLineCoordinates)
+                        .stroke(.blue, lineWidth: 4)
+                }
+                
+            }
+            .mapStyle(.standard(elevation: .realistic))
+            .preferredColorScheme(.dark)
+            .mapControls{
+                MapUserLocationButton()
+                MapCompass()
+                MapPitchToggle()
+                MapScaleView()
+            }
+            .onAppear {
+                locationManager.requestWhenInUseAuthorization()
+                
+                Task {
+                    for try await update in CLLocationUpdate.liveUpdates() {
+                        guard let coordinate = update.location?.coordinate else { continue }
+                        
+                        await MainActor.run {
+                            withAnimation(.easeInOut) {
+                                mapPosition = .region(
+                                    MKCoordinateRegion(
+                                        center: coordinate,
+                                        latitudinalMeters: 1300,
+                                        longitudinalMeters: 1300
+                                    )
+                                )
+                            }
+                        }
+                        
+                        break
+                    }
+                }
+            }
+            .blur(radius: isTracking ? 0 : 10)
+            .allowsHitTesting(isTracking)
+            
+            if isTracking {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 16) {
+                        // Saved Marks list button (flag icon with badge)
+                        ZStack(alignment: .topTrailing) {
+                            Button(action: { showSavedMarks.toggle() }) {
+                                Image(systemName: "flag")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 48, height: 48)
+//                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(.white, lineWidth: 1.5)
+                                    )
+                            }
+                            if !locations.isEmpty {
+                                Text("\(locations.count)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(4)
+                                    .background(Color.orange)
+                                    .clipShape(Circle())
+                                    .offset(x: 4, y: -4)
+                            }
+                        }
+                        
+                        // Add Mark button
+                        Button(action: createAnnotation) {
+                            Text("ADD MARK")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.blue)
+                                .cornerRadius(50)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 36)
+                }
+            }
+            
+            //overlay start trekking
+            if !isTracking {
+                ZStack {
+                    Color.black.opacity(0.1) // dark overlay
+                    
+                    VStack(spacing: 20) {
+                        Text("Are you ready to start?")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                        Button(action: {
+                            isTracking = true
+                        }) {
+                            Label("Start Trekking", systemImage: "location.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.black)
+                                .padding(.vertical, 14)
+                                .padding(.horizontal, 32)
+                                .background(Color.white)
+                                .cornerRadius(50)
+                        }
+                        
+                    }
+                    
+                }
+                .ignoresSafeArea()
+            }
+            
+        }
+        .sheet(isPresented: $showSavedMarks) {
+                SavedMarksView(
+                    locations: $locations,
+                    isPresented: $showSavedMarks,
+                    onNavigate: { location in
+                        showSavedMarks = false
+                        getDirections(to: location)
+                    }
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black)
+            }
+        
+    }
+    
+    
+    func createAnnotation(){
+        if let coordinate = locationManager.location?.coordinate{
+            print(coordinate) // tes ambil koor
+            let newLocation = Location(name: "PIN" + String(locations.count + 1), coordinate: coordinate, altitude: locationManager.location?.altitude ?? 0, emoji: "📍", notes: "")
+            print(newLocation.altitude)
+            print(newLocation.name) // tes print nama tiitk
+            locations.append(newLocation)
+            pinCounter += 1
+        }
+        
+    }
+    
+    func getUserLocation() async -> CLLocationCoordinate2D? {
+        let updates = CLLocationUpdate.liveUpdates()
+        
+        do {
+            let update = try await updates.first { $0.location?.coordinate != nil }
+            
+            return update?.location?.coordinate
+        } catch {
+            print("Cannot get user location")
+            return nil
         }
     }
+    
+    func getDirections(to destination: Location) {
+        Task {
+            for try await update in CLLocationUpdate.liveUpdates() {
+                guard let userCoordinate = update.location?.coordinate else { continue }
 
-    private func isNear(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Bool {
-        CLLocation(latitude: a.latitude, longitude: a.longitude)
-            .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
-            < MapConfig.nearbyThreshold
-    }
-}
+                await MainActor.run {
+                    let remainingPins = locations.filter {
+                        !isNear(userCoordinate, $0.coordinate)
+                    }
 
-// ─────────────────────────────────────────────
-// MARK: - Sub-views
-// ─────────────────────────────────────────────
+                    guard let destIndex = remainingPins.firstIndex(where: { $0.id == destination.id }) else {
+                        straightLineCoordinates = []
+                        return
+                    }
 
-private struct PinAnnotationView: View {
-    let emoji: String
-    var body: some View {
-        Text(emoji)
-            .font(.system(size: 20))
-            .padding(8)
-            .background(.black)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(.blue, lineWidth: 1))
-            .shadow(radius: 3)
-    }
-}
+                    let waypoints = remainingPins[(destIndex + 1)...]
+                        .sorted { $0.timestamp > $1.timestamp }
 
-private struct CircleIconButton: View {
-    let icon:   String
-    let color:  Color
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 48, height: 48)
-                .background(color)
-                .clipShape(Circle())
+                    var routeCoordinates: [CLLocationCoordinate2D] = [userCoordinate]
+
+                    for pin in waypoints {
+                        routeCoordinates.append(pin.coordinate)
+                    }
+
+                    routeCoordinates.append(destination.coordinate)
+
+                    straightLineCoordinates = routeCoordinates
+                }
+            }
         }
     }
+    
+    func isNear(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Bool {
+        let loc1 = CLLocation(latitude: a.latitude, longitude: a.longitude)
+        let loc2 = CLLocation(latitude: b.latitude, longitude: b.longitude)
+        
+        return loc1.distance(from: loc2) < 15 // mau hilang garisnya jika sudah mendekati berapa meteer
+    }
+    
+    
 }
+
+
 
 #Preview {
     MainView()

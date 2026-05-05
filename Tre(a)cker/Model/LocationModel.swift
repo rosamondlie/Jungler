@@ -14,23 +14,16 @@ struct Location: Identifiable, Hashable, Equatable {
     var coordinate: CLLocationCoordinate2D
     var timestamp: Date
     var altitude: Double
+    var notes: String
     var emoji: String
     
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
-    static func == (lhs: Location, rhs: Location) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    init(id: UUID = UUID(), name: String, coordinate: CLLocationCoordinate2D,
-         timestamp: Date = Date(), altitude: Double, emoji: String) {
-        self.id         = id
-        self.name       = name
+    init (id: UUID = UUID(), name: String, coordinate : CLLocationCoordinate2D, timestamp: Date = Date(), altitude: Double, emoji: String, notes: String) {
+        self.id = id
+        self.name = name
         self.coordinate = coordinate
-        self.timestamp  = timestamp
-        self.altitude   = altitude
-        self.emoji      = emoji
+        self.timestamp = timestamp
+        self.altitude = altitude
+        self.emoji = emoji
+        self.notes = notes
     }
 }
