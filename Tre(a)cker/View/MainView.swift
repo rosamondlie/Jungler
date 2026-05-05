@@ -9,7 +9,7 @@ import SwiftUI
 import MapKit
 
 struct MainView: View {
-    @State private var mapPosition: MapCameraPosition = .region(MKCoordinateRegion(center: .init(latitude: -6.292363, longitude: 106.644227), latitudinalMeters: 1300, longitudinalMeters: 1300))
+    @State private var mapPosition: MapCameraPosition = .region(MKCoordinateRegion(center: .init(latitude: -6.715290116344274, longitude: 106.73303228539615), latitudinalMeters: 1300, longitudinalMeters: 1300))
     
     @State private var locationManager = CLLocationManager()
     
@@ -28,18 +28,16 @@ struct MainView: View {
                 if !locations.isEmpty {
                     ForEach(locations) { location in
                          Annotation(location.name, coordinate: location.coordinate, anchor: .center){
-                            Image(systemName: "flag")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .frame(width: 20, height: 20)
-                                .padding(7)
-                                .background(.pink.gradient, in: .circle)
-                                .contextMenu {
-                                    Button("Get Direction"){
-                                        getDirections(to: location)
-                                    }
-                                }
+                             Text(location.emoji)
+                                     .font(.system(size: 20))
+                                     .padding(8)
+                                     .background(.black)
+                                     .clipShape(Circle())
+                                         .overlay(
+                                             Circle()
+                                                 .stroke(.blue, lineWidth: 1)
+                                         )
+                                     .shadow(radius: 3)
                         }
                     }
                 }
@@ -53,6 +51,7 @@ struct MainView: View {
                 
             }
             .mapStyle(.standard(elevation: .realistic))
+            .preferredColorScheme(.dark)
             .mapControls{
                 MapUserLocationButton()
                 MapCompass()
@@ -140,7 +139,7 @@ struct MainView: View {
     func createAnnotation(){
         if let coordinate = locationManager.location?.coordinate{
             print(coordinate) // tes ambil koor
-            let newLocation = Location(name: "PIN" + String(locations.count + 1), coordinate: coordinate, altitude: locationManager.location?.altitude ?? 0)
+            let newLocation = Location(name: "PIN" + String(locations.count + 1), coordinate: coordinate, altitude: locationManager.location?.altitude ?? 0, emoji: "📍")
             print(newLocation.altitude)
             print(newLocation.name) // tes print nama tiitk
             locations.append(newLocation)
@@ -161,37 +160,6 @@ struct MainView: View {
             return nil
         }
     }
-    
-//    func getDirections(to destination: Location) {
-//        Task {
-//            for try await update in CLLocationUpdate.liveUpdates() {
-//
-//                guard let userCoordinate = update.location?.coordinate else { continue }
-//
-//                await MainActor.run {
-//
-//                    let remainingPins = locations
-//                        .filter { $0.id != destination.id }
-//                        .sorted { $0.timestamp > $1.timestamp }
-//
-//                    var routeCoordinates: [CLLocationCoordinate2D] = []
-//
-//                    routeCoordinates.append(userCoordinate)
-//
-//                    for pin in remainingPins {
-//
-//                        if !isNear(userCoordinate, pin.coordinate) {
-//                            routeCoordinates.append(pin.coordinate)
-//                        }
-//                    }
-//
-//                    routeCoordinates.append(destination.coordinate)
-//
-//                    straightLineCoordinates = routeCoordinates
-//                }
-//            }
-//        }
-//    }
     
     func getDirections(to destination: Location) {
         Task {

@@ -130,9 +130,9 @@ struct SavedMarkCard: View {
 #Preview {
     SavedMarksView(
         locations: .constant([
-            Location(name: "Titik 1", coordinate: .init(latitude: -6.292363, longitude: 106.644227), altitude: 100),
-            Location(name: "Titik 2", coordinate: .init(latitude: -6.293000, longitude: 106.645000), altitude: 200),
-            Location(name: "Titik 3", coordinate: .init(latitude: -6.291000, longitude: 106.643000), altitude: 300)
+            Location(name: "Titik 1", coordinate: .init(latitude: -6.292363, longitude: 106.644227), altitude: 100, emoji: "📍"),
+            Location(name: "Titik 2", coordinate: .init(latitude: -6.293000, longitude: 106.645000), altitude: 200, emoji: "📍"),
+            Location(name: "Titik 3", coordinate: .init(latitude: -6.291000, longitude: 106.643000), altitude: 300, emoji: "📍")
         ]),
         onNavigate: { _ in },
         onDelete: { _ in }
