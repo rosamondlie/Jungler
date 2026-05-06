@@ -24,6 +24,7 @@ struct IconPicker: View {
                             selectedIcon = icon
                         }
                     }
+                    .equatable()
                 }
             }
             .padding(.vertical, 4)
@@ -34,10 +35,14 @@ struct IconPicker: View {
 
 // MARK: - IconPickerCell
 
-private struct IconPickerCell: View {
+private struct IconPickerCell: View, Equatable {
     let icon: String
     let isSelected: Bool
     let onSelect: () -> Void
+
+    static func == (lhs: IconPickerCell, rhs: IconPickerCell) -> Bool {
+        lhs.icon == rhs.icon && lhs.isSelected == rhs.isSelected
+    }
 
     private var color: Color { PinIconHelper.topColor(for: icon) }
 

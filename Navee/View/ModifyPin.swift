@@ -1,5 +1,3 @@
-// ModifyPin.swift
-
 import SwiftUI
 import CoreLocation
 
@@ -9,6 +7,27 @@ struct ModifyPin: View {
     @Binding var location: Location
     var userLocation: CLLocation?
     var onDelete: () -> Void
+
+    @State private var draft: Location
+
+    init(location: Binding<Location>, userLocation: CLLocation?, onDelete: @escaping () -> Void) {
+        self._location = location
+        self.userLocation = userLocation
+        self.onDelete = onDelete
+        self._draft = State(initialValue: location.wrappedValue)
+    }
+
+    private var limitedNameBinding: Binding<String> {
+        Binding(
+            get: { draft.name },
+            set: { newValue in
+                let truncated = String(newValue.prefix(20))
+                if draft.name != truncated {
+                    draft.name = truncated
+                }
+            }
+        )
+    }
 
     var body: some View {
         Form {
@@ -31,13 +50,28 @@ struct ModifyPin: View {
 
     private var nameSection: some View {
         Section {
-            TextField("Point name", text: $location.name)
+            HStack {
+                TextField("Point name", text: limitedNameBinding)
+                    .onChange(of: draft.name) { _, newValue in
+                        let truncated = String(newValue.prefix(20))
+                        if newValue != truncated {
+                            draft.name = truncated
+                        }
+                    }
+
+                Spacer()
+
+                Text("\(draft.name.count)/20")
+                    .font(.caption)
+                    .foregroundStyle(draft.name.count >= 20 ? .red : .secondary)
+                    .monospacedDigit()
+            }
         }
     }
 
     private var iconSection: some View {
         Section {
-            IconPicker(selectedIcon: $location.emoji)
+            IconPicker(selectedIcon: $draft.emoji)
         }
     }
 
@@ -45,15 +79,15 @@ struct ModifyPin: View {
         Section {
             InfoRow(
                 label: "Distance",
-                value: location.formattedDistance(from: userLocation, suffix: "away")
+                value: draft.formattedDistance(from: userLocation, suffix: "away")
             )
-            InfoRow(label: "Altitude",    value: "\(Int(location.altitude)) mdpl")
+            InfoRow(label: "Altitude",    value: "\(Int(draft.altitude)) mdpl")
             InfoRow(label: "Coordinates", value: String(
                 format: "%.4f, %.4f",
-                location.coordinate.latitude,
-                location.coordinate.longitude
+                draft.coordinate.latitude,
+                draft.coordinate.longitude
             ))
-            InfoRow(label: "Saved", value: location.timestamp.relativeFormatted())
+            InfoRow(label: "Saved", value: draft.timestamp.relativeFormatted())
         }
     }
 
@@ -71,13 +105,14 @@ struct ModifyPin: View {
 
     private var doneButton: some View {
         Button {
+            location = draft  // ✅ baru save ke parent di sini
             dismiss()
         } label: {
             Image(systemName: "checkmark")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white)
         }
-        .disabled(location.name.isEmpty)
+        .disabled(draft.name.isEmpty)
     }
 }
 
