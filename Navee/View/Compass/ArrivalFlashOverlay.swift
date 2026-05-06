@@ -11,44 +11,52 @@ struct ArrivalFlashOverlay: View {
     let kind: ArrivalKind
     let opacity: Double
 
-    private var accentColor: Color {
-        kind == .final
-            ? Color(red: 1.0, green: 0.84, blue: 0.04)
-            : Color(red: 0.20, green: 0.78, blue: 0.35)
-    }
-    private var icon: String     { kind == .final ? "flag.checkered.circle.fill" : "checkmark.circle.fill" }
-    private var title: String    { kind == .final ? "You've Arrived" : "Checkpoint" }
-    private var subtitle: String { kind == .final ? "Destination reached" : "Moving to the next point" }
-
     var body: some View {
+        // Hanya untuk .checkpoint — .final sudah ditangani BottomNavCard
         ZStack {
-            Color.black.opacity(opacity * 0.35).ignoresSafeArea()
+            Color.black.opacity(opacity * 0.35)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
 
             VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 52, weight: .regular))
-                    .foregroundStyle(accentColor)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48, weight: .regular))
+                    .foregroundStyle(Color(red: 0.20, green: 0.78, blue: 0.35))
                     .symbolRenderingMode(.hierarchical)
-                Text(title)
+
+                Text("Checkpoint")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(.white)
-                Text(subtitle)
+
+                Text("Moving to the next point")
                     .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(.white.opacity(0.55))
             }
-            .padding(.horizontal, 36)
+            .padding(.horizontal, 28)
             .padding(.vertical, 32)
-            .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-            )
+            .background(glassBackground)
+            .padding(.horizontal, 24)
             .scaleEffect(0.88 + 0.12 * opacity)
             .opacity(opacity)
         }
+    }
+
+    private var glassBackground: some View {
+        RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .environment(\.colorScheme, .dark)
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color.white.opacity(0.08), Color.white.opacity(0.02)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 30, x: 0, y: 10)
     }
 }

@@ -1,3 +1,10 @@
+//
+//  CompassNavigationView.swift
+//  Navee
+//
+//  Created by neena on 06/05/26.
+//
+
 import SwiftUI
 import CoreLocation
 
@@ -26,18 +33,33 @@ struct CompassNavigationView: View {
         return (destinationIndex..<lastIndex).reversed().map { allLocations[$0] }
     }
 
-    private var currentTarget: Location? { breadcrumbs[safe: currentStep] }
-    private var totalSteps: Int          { breadcrumbs.count }
-    private var isLastStep: Bool         { currentStep >= totalSteps - 1 }
-    private var finalArrived: Bool       { nav.hasArrived && isLastStep }
-    private var pointsPassed: Int        { nav.hasArrived ? currentStep + 1 : currentStep }
+    private var currentTarget: Location?    { breadcrumbs[safe: currentStep] }
+    private var finalDestination: Location? { breadcrumbs.last }
+    private var totalSteps: Int             { breadcrumbs.count }
+    private var isLastStep: Bool            { currentStep >= totalSteps - 1 }
+    private var finalArrived: Bool          { nav.hasArrived && isLastStep }
+    private var pointsPassed: Int           { nav.hasArrived ? currentStep + 1 : currentStep }
+
+    private var distanceToFinal: Double {
+        guard let userLocation = tracker.userLocation else { return 0 }
+        let remaining = Array(breadcrumbs.dropFirst(currentStep))
+        guard !remaining.isEmpty else { return 0 }
+        var total = 0.0
+        var prev  = userLocation.coordinate
+        for waypoint in remaining {
+            total += prev.distance(to: waypoint.coordinate)
+            prev   = waypoint.coordinate
+        }
+        return total
+    }
 
     // MARK: - Body
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
+            // Compass + status — selalu render, tidak pernah dihapus dari view tree
             VStack(spacing: 0) {
                 Spacer()
                 VStack(spacing: 0) {
@@ -50,17 +72,30 @@ struct CompassNavigationView: View {
                         .animation(.easeInOut(duration: 0.3), value: finalArrived)
                 }
                 Spacer(minLength: 32)
-                BottomNavCard(
-                    nav:             nav,
-                    finalArrived:    finalArrived,
-                    currentTarget:   currentTarget,
-                    pointsPassed:    pointsPassed,
-                    totalSteps:      totalSteps,
-                    onEndNavigation: onEndNavigation
-                )
+                // Ruang kosong agar compass tidak tertutup card
+                Color.clear.frame(height: 200)
             }
 
-            if let flash = arrivalFlash {
+            // Dim overlay di atas compass saat arrived
+            Color.black.opacity(finalArrived ? 0.55 : 0)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .animation(.easeInOut(duration: 0.4), value: finalArrived)
+
+            // Bottom nav card — nempel ke bawah via ZStack alignment
+            BottomNavCard(
+                nav:              nav,
+                finalArrived:     finalArrived,
+                currentTarget:    currentTarget,
+                finalDestination: finalDestination,
+                distanceToFinal:  distanceToFinal,
+                pointsPassed:     pointsPassed,
+                totalSteps:       totalSteps,
+                onEndNavigation:  onEndNavigation
+            )
+
+            // Checkpoint flash overlay
+            if let flash = arrivalFlash, flash == .checkpoint {
                 ArrivalFlashOverlay(kind: flash, opacity: flashOpacity)
                     .allowsHitTesting(false)
             }
@@ -96,14 +131,11 @@ struct CompassNavigationView: View {
 
     private func checkArrival() {
         guard nav.hasArrived else { return }
-        if isLastStep {
-            triggerFlash(.final)
-        } else {
-            triggerFlash(.checkpoint) {
-                withAnimation(.easeInOut(duration: 0.4)) { currentStep += 1 }
-                wasArrived = false
-                updateNav(from: tracker.userLocation)
-            }
+        guard !isLastStep else { return }
+        triggerFlash(.checkpoint) {
+            withAnimation(.easeInOut(duration: 0.4)) { currentStep += 1 }
+            wasArrived = false
+            updateNav(from: tracker.userLocation)
         }
     }
 
@@ -111,6 +143,7 @@ struct CompassNavigationView: View {
         guard arrivalFlash == nil else { return }
         arrivalFlash = kind
         withAnimation(.easeOut(duration: 0.2)) { flashOpacity = 1 }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
             withAnimation(.easeIn(duration: 0.35)) { flashOpacity = 0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {

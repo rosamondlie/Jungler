@@ -55,15 +55,15 @@ private struct CompassDial: View {
             let R  = min(cx, cy)
 
             let ring = Path(ellipseIn: CGRect(x: cx - R, y: cy - R, width: R * 2, height: R * 2))
-            ctx.stroke(ring, with: .color(.white.opacity(0.08)), lineWidth: 1)
+            ctx.stroke(ring, with: .color(.white.opacity(0.15)), lineWidth: 1.5)
 
             for deg in stride(from: 0.0, to: 360.0, by: 2.0) {
                 let isMajor  = deg.truncatingRemainder(dividingBy: 90)  == 0
                 let isCard   = deg.truncatingRemainder(dividingBy: 45)  == 0 && !isMajor
                 let isMedium = deg.truncatingRemainder(dividingBy: 10)  == 0 && !isCard && !isMajor
 
-                let outer: CGFloat = R - 2
-                let inner: CGFloat = isMajor ? R - 22 : isCard ? R - 16 : isMedium ? R - 11 : R - 7
+                let outer: CGFloat = R - 1
+                let inner: CGFloat = isMajor ? R - 30 : isCard ? R - 24 : isMedium ? R - 17 : R - 12
 
                 let rad  = (deg - userHeading - 90) * .pi / 180
                 let cosV = CGFloat(Foundation.cos(rad))
@@ -73,9 +73,9 @@ private struct CompassDial: View {
                 tick.move(to:    CGPoint(x: cx + outer * cosV, y: cy + outer * sinV))
                 tick.addLine(to: CGPoint(x: cx + inner * cosV, y: cy + inner * sinV))
 
-                let width:   CGFloat = isMajor ? 2.5 : isCard ? 2.0 : isMedium ? 1.5 : 1.0
-                let opacity: Double  = isMajor ? 1.0 : isCard ? 0.8 : isMedium ? 0.55 : 0.3
-                let color: Color = (deg == 0 || !isOnTrack) ? .white : .green
+                let width:   CGFloat = isMajor ? 4.5 : isCard ? 3.0 : isMedium ? 2.5 : 1.8
+                let opacity: Double  = isMajor ? 1.0 : isCard ? 0.9 : isMedium ? 0.7 : 0.45
+                let color: Color = (deg == 0 || !isOnTrack) ? .white : Color(red: 0.0, green: 1.0, blue: 0.45)
 
                 ctx.stroke(tick, with: .color(color.opacity(opacity)),
                            style: StrokeStyle(lineWidth: width, lineCap: .round))
@@ -86,7 +86,7 @@ private struct CompassDial: View {
             ZStack {
                 ForEach(cardinalLabels, id: \.deg) { item in
                     let rad  = (item.deg - userHeading) * .pi / 180
-                    let dist = radius - (item.major ? 32 : 26)
+                    let dist = radius - (item.major ? 40 : 34)
                     Text(item.text)
                         .font(.system(size: item.major ? 13 : 10,
                                       weight: item.major ? .bold : .medium,
@@ -140,7 +140,7 @@ private struct DirectionCone: View {
     }
 
     private var coneGradient: RadialGradient {
-        let center: Color = isOnTrack ? .green.opacity(0.72) : .white.opacity(0.28)
+        let center: Color = isOnTrack ? Color(red: 0.0, green: 1.0, blue: 0.45).opacity(0.85) : .white.opacity(0.28)
         return RadialGradient(
             colors: [center, .clear],
             center: UnitPoint(x: 0.5, y: 1.0),
@@ -189,6 +189,7 @@ private struct DestinationPin: View {
         Group {
             if nav.isOnTrack || nav.hasArrived {
                 TeardropPin(color: color, iconName: iconName)
+                    .rotationEffect(.degrees(nav.userHeading))
             } else {
                 Circle().fill(color.opacity(0.5)).frame(width: 10, height: 10)
             }

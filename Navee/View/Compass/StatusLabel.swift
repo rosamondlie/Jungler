@@ -27,7 +27,7 @@ struct StatusLabel: View {
             : "Head back toward the route"
     }
 
-    private var dotColor: Color {
+    private var labelColor: Color {
         if noGPS        { return .white.opacity(0.35) }
         if finalArrived { return Color(red: 1.0, green: 0.84, blue: 0.04) }
         return nav.isOnTrack
@@ -36,22 +36,15 @@ struct StatusLabel: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 5) {
-                Circle().fill(dotColor).frame(width: 6, height: 6)
-                Text(label)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(dotColor)
-                    .kerning(0.3)
-            }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 6)
-            .background(dotColor.opacity(0.13))
-            .clipShape(Capsule())
+        VStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 36, weight: .bold))
+                .foregroundColor(labelColor)
+                .kerning(0.5)
 
             Text(subtitle)
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.45))
+                .font(.system(size: 16))
+                .foregroundColor(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
         }
         .animation(.easeInOut(duration: 0.25), value: label)
