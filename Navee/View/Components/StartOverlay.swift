@@ -12,24 +12,50 @@ struct StartOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.1)
+            GeometryReader { geo in
+                Image("welcomepage")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+            }
+            .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Text("Are you ready to start?")
-                    .font(.title2.bold())
+            VStack(spacing: 32) {
+                Spacer()
+
+                Image("island")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(.horizontal, 24)
+
+                Text("Drop a trail so you can always\nfind your way back.")
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
 
                 Button(action: onStart) {
-                    Label("Start Trekking", systemImage: "location.fill")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 32)
-                        .background(Color.white)
-                        .cornerRadius(50)
+                    HStack(spacing: 8) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Start Trekking")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.white)
+                    .cornerRadius(50)
                 }
+                .padding(.horizontal, 32)
+
+                Spacer()
             }
         }
         .ignoresSafeArea()
     }
+}
+
+#Preview {
+    StartOverlay(onStart: {})
 }

@@ -1,10 +1,14 @@
+//
+//  MainView.swift
+//  Navee
+//
+
 import SwiftUI
 import MapKit
 import CoreLocation
 
 struct MainView: View {
 
-    @Environment(\.dismiss) private var dismiss
     @State private var mapPosition = MapCameraPosition.region(
         MKCoordinateRegion(
             center: MapConfig.defaultCenter,
@@ -15,11 +19,16 @@ struct MainView: View {
 
     @StateObject private var tracker = LocationTracker()
 
-    @State private var locations: [Location] = []
-    @State private var isTracking = false
-    @State private var showSavedMarks = false
-    @State private var selectedPinID: Location.ID? = nil
-    @State private var compassDestinationIndex: Int? = nil
+    @State private var locations:               [Location]        = []
+    @State private var isTracking:              Bool              = false
+    @State private var sheetContent:            MarkSheetContent? = nil
+    @State private var compassDestinationIndex: Int?              = nil
+
+    private let spring: Animation = .spring(response: 0.4, dampingFraction: 0.82)
+
+    // Tinggi SmallDetent (240) + sedikit breathing room
+    // supaya pin selected tidak ketutupan sheet
+    private let detailSheetHeight: CGFloat = 260
 
     var body: some View {
         ZStack {
@@ -27,113 +36,102 @@ struct MainView: View {
 
             if isTracking {
                 TrackingToolbar(
-                    pinCount: locations.count,
-                    onShowMarks: { showSavedMarks = true },
-                    onAddMark: addMark
+                    pinCount:    locations.count,
+                    onShowMarks: { sheetContent = .list },
+                    onAddMark:   addMark
                 )
             }
 
             if !isTracking {
                 StartOverlay { isTracking = true }
             }
-
-            
         }
-        .sheet(isPresented: .constant(selectedPinID != nil)) {
-            NavigationStack {
-                if let selectedID = selectedPinID,
-                   let selectedLocation = locations.first(where: { $0.id == selectedID }) {
-                    BottomPinDetailView(
-                        location: selectedLocation,
-                        userLocation: tracker.userLocation,
-                        onNavigate: {
-                            openCompass(to: selectedLocation)
-                        }
-                    )
-                    .presentationDetents([.fraction(0.3)])
-                    .toolbarVisibility(.visible, for: .navigationBar)
-                    .toolbar {
-                        Button("back", systemImage: "xmark") {
-                            dismiss()
-                            selectedPinID = nil
-                            
-                        }
-                    }
-                }
-            }
+        .sheet(isPresented: sheetIsPresented) {
+            UnifiedMarkSheet(
+                locations:     $locations,
+                content:       $sheetContent,
+                userLocation:  tracker.userLocation,
+                onNavigate:    handleNavigate,
+                onSelectOnMap: handleSelectOnMap
+            )
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedPinID)
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                if selectedPinID != nil {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selectedPinID = nil
-                    }
-                }
-            }
-        )
         .fullScreenCover(isPresented: compassNavigationBinding) {
             if let idx = compassDestinationIndex {
                 CompassNavigationView(
-                    allLocations: locations,
+                    allLocations:     locations,
                     destinationIndex: idx,
-                    onEndNavigation: { compassDestinationIndex = nil }
+                    onEndNavigation:  { compassDestinationIndex = nil }
                 )
             }
-        }
-        .sheet(isPresented: $showSavedMarks) {
-            SavedMarksView(
-                locations: $locations,
-                isPresented: $showSavedMarks,
-                onNavigate: handleNavigate,
-                onSelect: handleSelect,
-                userLocation: tracker.userLocation
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(.black)
         }
     }
 
     // MARK: - Map Layer
 
     private var mapLayer: some View {
-        Map(position: $mapPosition) {
-            if let userCoord = tracker.userLocation?.coordinate {
-                Annotation("", coordinate: userCoord, anchor: .center) {
-                    FootstepMarker()
-                        .allowsHitTesting(false)
+        GeometryReader { geo in
+            Map(position: $mapPosition) {
+                if let userCoord = tracker.userLocation?.coordinate {
+                    Annotation("", coordinate: userCoord, anchor: .center) {
+                        FootstepMarker()
+                            .allowsHitTesting(false)
+                    }
                 }
-            }
 
-            ForEach(locations) { location in
-                Annotation("", coordinate: location.coordinate, anchor: .bottom) {
-                    DynamicTearDropPin(
-                        location: location,
-                        isSelected: selectedPinID == location.id,
-                        onTap: { toggleSelection(for: location.id) }
-                    )
-                    .zIndex(selectedPinID == location.id ? 1 : 0)
+                ForEach(locations) { location in
+                    Annotation("", coordinate: location.coordinate, anchor: .bottom) {
+                        DynamicTearDropPin(
+                            location:   location,
+                            isSelected: isSelected(location),
+                            onTap:      { handlePinTap(location) }
+                        )
+                        .zIndex(isSelected(location) ? 1 : 0)
+                    }
                 }
             }
+            .mapStyle(.standard(elevation: .realistic))
+            .preferredColorScheme(.dark)
+            .mapControls {
+                MapUserLocationButton()
+                MapCompass()
+                MapPitchToggle()
+                MapScaleView()
+            }
+            // FIX: geser map ke atas saat detail sheet muncul supaya pin
+            // selected tidak tertutup sheet, seperti behavior Google Maps / Apple Maps.
+            // Tidak ada overlay hitam — map tetap bersih dan interaktif.
+            .safeAreaInset(edge: .bottom) {
+                if isDetailVisible {
+                    Color.clear.frame(height: detailSheetHeight)
+                }
+            }
+            .onAppear {
+                tracker.startTracking()
+                centerMapOnUser()
+            }
+            .overlay {
+                if !isTracking {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                }
+            }
+            .allowsHitTesting(isTracking)
         }
-        .mapStyle(.standard(elevation: .realistic))
-        .preferredColorScheme(.dark)
-        .mapControls {
-            MapUserLocationButton()
-            MapCompass()
-            MapPitchToggle()
-            MapScaleView()
-        }
-        .onAppear {
-            tracker.startTracking()
-            centerMapOnUser()
-        }
-        .blur(radius: isTracking ? 0 : 10)
-        .allowsHitTesting(isTracking)
     }
 
     // MARK: - Computed Properties
+
+    private var isDetailVisible: Bool {
+        if case .detail = sheetContent { return true }
+        return false
+    }
+
+    private var sheetIsPresented: Binding<Bool> {
+        Binding(
+            get: { sheetContent != nil },
+            set: { if !$0 { sheetContent = nil } }
+        )
+    }
 
     private var compassNavigationBinding: Binding<Bool> {
         Binding(
@@ -142,18 +140,40 @@ struct MainView: View {
         )
     }
 
+    private func isSelected(_ location: Location) -> Bool {
+        if case .detail(let l) = sheetContent { return l.id == location.id }
+        return false
+    }
+
     // MARK: - Actions
 
-    private func toggleSelection(for id: Location.ID) {
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-            selectedPinID = (selectedPinID == id) ? nil : id
+    private func handlePinTap(_ location: Location) {
+        if case .detail(let current) = sheetContent, current.id == location.id {
+            sheetContent = nil
+        } else {
+            sheetContent = .detail(location)
+            centerMap(on: location.coordinate)
         }
     }
 
     private func handleNavigate(_ location: Location) {
-        showSavedMarks = false
+        sheetContent = nil
         if let idx = locations.firstIndex(where: { $0.id == location.id }) {
             compassDestinationIndex = idx
+        }
+    }
+
+    private func handleSelectOnMap(_ location: Location) {
+        centerMap(on: location.coordinate)
+    }
+
+    private func centerMap(on coord: CLLocationCoordinate2D) {
+        withAnimation(.easeInOut(duration: 0.6)) {
+            mapPosition = .region(MKCoordinateRegion(
+                center: coord,
+                latitudinalMeters: MapConfig.defaultSpan,
+                longitudinalMeters: MapConfig.defaultSpan
+            ))
         }
     }
 
@@ -175,49 +195,19 @@ struct MainView: View {
         }
     }
 
-    private func handleSelect(_ location: Location) {
-        showSavedMarks = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            selectedPinID = location.id
-            withAnimation(.easeInOut(duration: 1)) {
-                mapPosition = .region(MKCoordinateRegion(
-                    center: location.coordinate,
-                    latitudinalMeters: MapConfig.defaultSpan,
-                    longitudinalMeters: MapConfig.defaultSpan
-                ))
-            }
-        }
-    }
-
     private func addMark() {
         guard let location = tracker.currentLocation() else {
             print("[AddMark] Lokasi belum tersedia")
             return
         }
         let pin = Location(
-            name:       "PIN\(locations.count + 1)",
+            name:       "Checkpoint \(locations.count + 1)",
             coordinate: location.coordinate,
             altitude:   location.altitude,
             emoji:      "mappin",
             notes:      ""
         )
         locations.append(pin)
-    }
-
-    private func openCompass(to destination: Location) {
-        withAnimation {
-            selectedPinID = nil
-        }
-        guard let idx = locations.firstIndex(where: { $0.id == destination.id }) else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            compassDestinationIndex = idx
-        }
-    }
-
-    private func isNear(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Bool {
-        CLLocation(latitude: a.latitude, longitude: a.longitude)
-            .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
-            < MapConfig.nearbyThreshold
     }
 }
 

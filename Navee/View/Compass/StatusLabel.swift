@@ -14,17 +14,17 @@ struct StatusLabel: View {
     private var noGPS: Bool { nav.distance == 0 || !nav.hasValidHeading }
 
     private var label: String {
-        if noGPS        { return "Searching GPS…" }
+        if noGPS        { return "Finding Location" }
         if finalArrived { return "Arrived!" }
-        return nav.isOnTrack ? "On Track" : "Wrong Way"
+        return nav.isOnTrack ? "Heading Right" : "Slightly Off"
     }
 
     private var subtitle: String {
-        if noGPS        { return "Waiting for location signal" }
+        if noGPS        { return "Looking for a GPS signal..." }
         if finalArrived { return "You have reached your destination" }
         return nav.isOnTrack
-            ? "Continue toward your destination"
-            : "Head back toward the route"
+            ? "Keep heading this way"
+            : "Turn slightly toward your destination"
     }
 
     private var labelColor: Color {

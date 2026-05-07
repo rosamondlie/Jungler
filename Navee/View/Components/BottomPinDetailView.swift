@@ -2,112 +2,91 @@
 //  BottomPinDetailView.swift
 //  Navee
 //
-//  Created by Rosamond Patricia Selamat Lie on 06/05/26.
-//
+
 import SwiftUI
 import CoreLocation
 
 struct BottomPinDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    let location: Location
+    let location:     Location
     var userLocation: CLLocation?
-    var onNavigate: () -> Void
-    
+    var onNavigate:   () -> Void
+    var onEdit:       () -> Void
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            
-            // Icon + Info row
-            HStack(spacing: 16) {
-                PinIconBox(emoji: location.emoji, size: 56)
-                
-                VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+
+            // MARK: Header
+            HStack(spacing: 14) {
+                PinIconBox(emoji: location.emoji, size: 44)
+
+                VStack(alignment: .leading, spacing: 4) {
                     Text(location.name)
-                        .font(.title3.bold())
+                        .font(.headline)
                         .foregroundColor(.white)
-                    
-                    HStack(spacing: 6) {
-                        Text(location.formattedDistance(from: userLocation))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("·")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary.opacity(0.4))
-                        
-                        Text("\(Int(location.altitude)) mdpl")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Text(formattedDate(location.timestamp))
+                        .lineLimit(1)
+
+                    LocationMetaRow(location: location, userLocation: userLocation)
+
+                    Text(location.timestamp.relativeFormatted())
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .padding(.top, 30)
-                
+
                 Spacer()
-                
-//                Button(action: { dismiss() }, label: {
-//                    Image(systemName: "xmark.circle")
-//                })
             }
-            
-            // Navigate button — full width
+
             Button(action: onNavigate) {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 16, weight: .semibold))
                     Text("Navigate")
-                        .font(.system(size: 16, weight: .semibold))
                 }
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .frame(height: 50)               // ← fixed height
                 .background(Color.blue)
-                .cornerRadius(50)
+                .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            
-            // Extra bottom padding for home indicator
-            Spacer().frame(height: 8)
+
+            // MARK: Edit — secondary (iOS 26 Liquid Glass)
+            Button(action: onEdit) {
+                Label("Edit Point", systemImage: "pencil")
+                    .font(.system(size: 15, weight: .medium))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)           // ← sama persis
+                    .glassEffect(in: .capsule)
+            }
+            .buttonStyle(.plain)
         }
-        
+        .padding(.top, 8)
         .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black)
     }
-        
-        
-        func formattedDate(_ date: Date) -> String {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
-        }
-    
 }
 
+// MARK: - Preview
+
 #Preview {
-    ZStack {
-        Color.gray.ignoresSafeArea()
-        VStack {
-            Spacer()
-            BottomPinDetailView(
-                location: Location(
-                    name: "Titik 1",
-                    coordinate: .init(latitude: -6.292363, longitude: 106.644227),
-                    altitude: 12,
-                    emoji: "mappin",
-                    notes: ""
-                ),
-                userLocation: CLLocation(latitude: -6.293000, longitude: 106.645000),
-                onNavigate: {}
-            )
-            .background(.ultraThinMaterial)
-            .cornerRadius(20, corners: [.topLeft, .topRight])
-        }
-        .ignoresSafeArea(edges: .bottom)
+    NavigationStack {
+        BottomPinDetailView(
+            location: Location(
+                name:       "Titik 1",
+                coordinate: .init(latitude: -6.292363, longitude: 106.644227),
+                altitude:   12,
+                emoji:      "mappin",
+                notes:      ""
+            ),
+            userLocation: CLLocation(latitude: -6.293000, longitude: 106.645000),
+            onNavigate: {},
+            onEdit:     {}
+        )
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
     }
+    .frame(height: 270)
+    .background(Color.black)
     .preferredColorScheme(.dark)
 }

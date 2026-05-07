@@ -2,20 +2,19 @@
 //  DynamicTearDropPin.swift
 //  Navee
 //
-//  Created by neena on 06/05/26.
-//
+
 import SwiftUI
 
 // MARK: - DynamicTearDropPin
 
 struct DynamicTearDropPin: View {
-    let location: Location
+    let location:   Location
     let isSelected: Bool
-    let onTap: () -> Void
-    
-    private var iconName: String { PinIconHelper.iconName(for: location.emoji) }
+    let onTap:      () -> Void
+
+    private var iconName: String               { PinIconHelper.iconName(for: location.emoji) }
     private var colors: (top: Color, bottom: Color) { PinIconHelper.colors(for: location.emoji) }
-    
+
     var body: some View {
         PinBody(iconName: iconName, colors: colors, isSelected: isSelected)
             .onTapGesture { onTap() }
@@ -25,33 +24,67 @@ struct DynamicTearDropPin: View {
 // MARK: - PinBody
 
 private struct PinBody: View {
-    let iconName: String
-    let colors: (top: Color, bottom: Color)
+    let iconName:   String
+    let colors:     (top: Color, bottom: Color)
     let isSelected: Bool
-    
+
+    // Ukuran pin normal
+    private let baseSize:     CGFloat = 36
+    private let baseTailW:    CGFloat = 12
+    private let baseTailH:    CGFloat = 10
+    private let baseIconSize: CGFloat = 15
+
+    // Ukuran pin selected — lebih besar supaya kerasa seperti Apple Maps
+    private let selectedSize:     CGFloat = 48
+    private let selectedTailW:    CGFloat = 16
+    private let selectedTailH:    CGFloat = 13
+    private let selectedIconSize: CGFloat = 20
+
+    private var circleSize: CGFloat  { isSelected ? selectedSize     : baseSize }
+    private var tailW:      CGFloat  { isSelected ? selectedTailW    : baseTailW }
+    private var tailH:      CGFloat  { isSelected ? selectedTailH    : baseTailH }
+    private var iconSize:   CGFloat  { isSelected ? selectedIconSize : baseIconSize }
+
+    private let spring: Animation = .spring(response: 0.3, dampingFraction: 0.6)
+
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
+                // Shadow supaya pin "terangkat" saat selected
+                if isSelected {
+                    Circle()
+                        .fill(Color.black.opacity(0.25))
+                        .frame(width: circleSize + 4, height: circleSize + 4)
+                        .blur(radius: 6)
+                        .offset(y: 3)
+                }
+
                 Circle()
                     .fill(LinearGradient(
                         colors: [colors.top, colors.bottom],
                         startPoint: .top,
                         endPoint: .bottom
                     ))
-                    .frame(width: 36, height: 36)
-                
+                    .frame(width: circleSize, height: circleSize)
+                    // Stroke tipis saat selected, seperti Apple Maps
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(isSelected ? 0.6 : 0), lineWidth: 2)
+                    )
+
                 Image(systemName: iconName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: iconSize, weight: .semibold))
                     .foregroundColor(.white)
             }
-            
+
             PinTail()
                 .fill(colors.bottom)
-                .frame(width: 12, height: 10)
+                .frame(width: tailW, height: tailH)
                 .offset(y: -1)
         }
-        .scaleEffect(isSelected ? 1.12 : 1.0)
-        .animation(.spring(response: 0.25, dampingFraction: 0.65), value: isSelected)
+        // Animasi ukuran — pakai animatable size bukan scaleEffect
+        // supaya anchor point (bawah/ujung tail) tidak bergeser
+        .animation(spring, value: isSelected)
     }
 }
 

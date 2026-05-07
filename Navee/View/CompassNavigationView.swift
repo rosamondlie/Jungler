@@ -2,8 +2,6 @@
 //  CompassNavigationView.swift
 //  Navee
 //
-//  Created by neena on 06/05/26.
-//
 
 import SwiftUI
 import CoreLocation
@@ -15,12 +13,13 @@ struct CompassNavigationView: View {
 
     @StateObject private var tracker = LocationTracker()
 
-    @State private var nav          = NavState()
-    @State private var currentStep  = 0
+    @State private var nav               = NavState()
+    @State private var currentStep       = 0
     @State private var arrivalFlash: ArrivalKind? = nil
     @State private var flashOpacity: Double = 0
-    @State private var wasOnTrack   = true
-    @State private var wasArrived   = false
+    @State private var wasOnTrack        = true
+    @State private var wasArrived        = false
+    @State private var showEndConfirm    = false
 
     // MARK: - Computed Properties
 
@@ -59,7 +58,7 @@ struct CompassNavigationView: View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
-            // Compass + status — selalu render, tidak pernah dihapus dari view tree
+            // Compass + status label
             VStack(spacing: 0) {
                 Spacer()
                 VStack(spacing: 0) {
@@ -71,18 +70,23 @@ struct CompassNavigationView: View {
                         .padding(.top, 28)
                         .animation(.easeInOut(duration: 0.3), value: finalArrived)
                 }
+                .opacity(finalArrived ? 0 : 1)
+                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: finalArrived)
+
                 Spacer(minLength: 32)
-                // Ruang kosong agar compass tidak tertutup card
                 Color.clear.frame(height: 200)
             }
 
-            // Dim overlay di atas compass saat arrived
-            Color.black.opacity(finalArrived ? 0.55 : 0)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                .animation(.easeInOut(duration: 0.4), value: finalArrived)
+            // Dim overlay saat arrived
+            if finalArrived {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.35), value: finalArrived)
+            }
 
-            // Bottom nav card — nempel ke bawah via ZStack alignment
+            // Bottom nav card
             BottomNavCard(
                 nav:              nav,
                 finalArrived:     finalArrived,
@@ -91,7 +95,14 @@ struct CompassNavigationView: View {
                 distanceToFinal:  distanceToFinal,
                 pointsPassed:     pointsPassed,
                 totalSteps:       totalSteps,
-                onEndNavigation:  onEndNavigation
+                onEndNavigation: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        showEndConfirm = true
+                    }
+                },
+                onExit: {
+                    onEndNavigation()
+                }
             )
 
             // Checkpoint flash overlay
@@ -99,7 +110,102 @@ struct CompassNavigationView: View {
                 ArrivalFlashOverlay(kind: flash, opacity: flashOpacity)
                     .allowsHitTesting(false)
             }
+
+            // End Navigation modal — kotak kecil di tengah layar
+            if showEndConfirm {
+                ZStack {
+                    // Dim backdrop
+                    Color.black.opacity(0.55)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                showEndConfirm = false
+                            }
+                        }
+
+                    // Modal box — fixedSize supaya tidak stretch
+                    VStack(spacing: 0) {
+                        // Icon
+                        ZStack {
+                            Circle()
+                                .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(0.15))
+                                .frame(width: 56, height: 56)
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 26, weight: .semibold))
+                                .foregroundStyle(
+                                    Color(red: 1.0, green: 0.33, blue: 0.30),
+                                    Color(red: 1.0, green: 0.23, blue: 0.19).opacity(0.2)
+                                )
+                        }
+                        .padding(.top, 28)
+                        .padding(.bottom, 14)
+
+                        Text("End Navigation?")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text("Your current navigation session\nwill be stopped.")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                            .padding(.top, 6)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 24)
+
+                        Rectangle()
+                            .fill(Color.white.opacity(0.07))
+                            .frame(height: 1)
+
+                        HStack(spacing: 0) {
+                            Button {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    showEndConfirm = false
+                                }
+                            } label: {
+                                Text("Cancel")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.75))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 52)
+                            }
+                            .buttonStyle(ModalButtonStyle())
+
+                            Rectangle()
+                                .fill(Color.white.opacity(0.07))
+                                .frame(width: 1, height: 52)
+
+                            Button {
+                                onEndNavigation()
+                            } label: {
+                                Text("End")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color(red: 1.0, green: 0.33, blue: 0.30))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 52)
+                            }
+                            .buttonStyle(ModalButtonStyle())
+                        }
+                    }
+                    .fixedSize(horizontal: false, vertical: true)  // ← kunci modal tidak stretch
+                    .background(
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color(red: 0.14, green: 0.14, blue: 0.15).opacity(0.7))
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.75)
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(.horizontal, 48)
+                    .shadow(color: .black.opacity(0.4), radius: 30, x: 0, y: 10)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.93)))
+            }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showEndConfirm)
         .onAppear    { tracker.startTracking() }
         .onDisappear { tracker.stopTracking()  }
         .onChange(of: tracker.heading) { _, heading in

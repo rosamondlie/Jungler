@@ -2,8 +2,6 @@
 //  BottomNavCard.swift
 //  Navee
 //
-//  Created by neena on 06/05/26.
-//
 
 import SwiftUI
 
@@ -18,6 +16,7 @@ struct BottomNavCard: View {
     let pointsPassed: Int
     let totalSteps: Int
     var onEndNavigation: () -> Void
+    var onExit: () -> Void
 
     private var statusColor: Color {
         if nav.hasArrived { return Color(red: 1.0, green: 0.84, blue: 0.04) }
@@ -50,21 +49,22 @@ struct BottomNavCard: View {
 
             if finalArrived {
                 arrivalContent
+                    .frame(height: 320)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .frame(height: finalArrived ? 320 : nil)
         .background(
             Color(red: 0.11, green: 0.11, blue: 0.12)
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 28,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 28,
+                    style: .continuous
+                ))
                 .ignoresSafeArea(edges: .bottom)
         )
-        .clipShape(UnevenRoundedRectangle(
-            topLeadingRadius: 28,
-            bottomLeadingRadius: 0,
-            bottomTrailingRadius: 0,
-            topTrailingRadius: 28,
-            style: .continuous
-        ))
-        .frame(height: finalArrived ? 320 : nil)
         .animation(.spring(response: 0.45, dampingFraction: 0.8), value: finalArrived)
     }
 
@@ -147,19 +147,11 @@ struct BottomNavCard: View {
                 .padding(.top, 16)
             }
 
-            Button(action: onEndNavigation) {
-                Text("End Navigate")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(Color(red: 1.0, green: 0.23, blue: 0.19))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 20)
+            // Trigger modal konfirmasi
+            EndNavButton(label: "End Navigate", action: onEndNavigation)
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 20)
         }
     }
 
@@ -193,20 +185,50 @@ struct BottomNavCard: View {
 
             Spacer()
 
-            Button(action: onEndNavigation) {
-                Text("End Navigation")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(Color(red: 1.0, green: 0.23, blue: 0.19))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 36)
+            // Langsung exit, tanpa modal
+            EndNavButton(label: "Exit", action: onExit)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - End Nav Button
+
+struct EndNavButton: View {
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 50, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 50, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+
+                Text(label)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(red: 1.0, green: 0.33, blue: 0.30))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+        }
+        .buttonStyle(ModalButtonStyle())
+    }
+}
+
+// MARK: - Button Styles
+
+struct ModalButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .brightness(configuration.isPressed ? -0.05 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
@@ -268,13 +290,9 @@ private struct MRTProgressLine: View {
                     ellipsis
                 }
 
-                // Di ForEach, kondisi isCurrent sudah benar
-                // Titik final (dirender terpisah) ganti jadi:
-
                 connectorLine(done: currentStep >= totalSteps)
                 ZStack {
                     if currentStep == totalSteps {
-                        // Segmen terakhir aktif → hijau
                         Circle()
                             .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(0.25))
                             .frame(width: 14, height: 14)
