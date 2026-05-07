@@ -58,7 +58,7 @@ struct CompassNavigationView: View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
-            // Compass + status label
+            // Compass + status label — selalu tampil
             VStack(spacing: 0) {
                 Spacer()
                 VStack(spacing: 0) {
@@ -68,25 +68,13 @@ struct CompassNavigationView: View {
                     }
                     StatusLabel(nav: nav, finalArrived: finalArrived)
                         .padding(.top, 28)
-                        .animation(.easeInOut(duration: 0.3), value: finalArrived)
                 }
-                .opacity(finalArrived ? 0 : 1)
-                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: finalArrived)
 
                 Spacer(minLength: 32)
                 Color.clear.frame(height: 200)
             }
 
-            // Dim overlay saat arrived
-            if finalArrived {
-                Color.black.opacity(0.35)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.35), value: finalArrived)
-            }
-
-            // Bottom nav card
+            // Bottom nav card — selalu tampil
             BottomNavCard(
                 nav:              nav,
                 finalArrived:     finalArrived,
@@ -108,16 +96,23 @@ struct CompassNavigationView: View {
                 ArrivalFlashOverlay(kind: flash, opacity: flashOpacity)
                     .allowsHitTesting(false)
             }
-        }
-        .alert("End Navigation?", isPresented: $showEndConfirm) {
-            Button("End", role: .destructive) {
-                onEndNavigation()
+
+            // Arrival overlay — di tengah layar, di atas semua
+            if finalArrived {
+                ArrivalOverlay(
+                    destination: finalDestination,
+                    onExit: onEndNavigation
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: finalArrived)
+        .alert("End Navigation?", isPresented: $showEndConfirm) {
+            Button("End", role: .destructive) { onEndNavigation() }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Your current navigation session will be stopped.")
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showEndConfirm)
         .onAppear    { tracker.startTracking() }
         .onDisappear { tracker.stopTracking()  }
         .onChange(of: tracker.heading) { _, heading in
@@ -168,6 +163,104 @@ struct CompassNavigationView: View {
                 arrivalFlash = nil
                 completion?()
             }
+        }
+    }
+}
+
+// MARK: - Arrival Overlay (tengah layar)
+
+private struct ArrivalOverlay: View {
+    let destination: Location?
+    let onExit: () -> Void
+
+    var body: some View {
+        ZStack {
+            // Dim backdrop
+            Color.black.opacity(0.55)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
+            // Card di tengah
+            VStack(spacing: 0) {
+                // Checkmark icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.20, green: 0.78, blue: 0.35).opacity(0.3),
+                                    Color(red: 0.10, green: 0.60, blue: 0.25).opacity(0.1)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+
+                    Circle()
+                        .strokeBorder(
+                            Color(red: 0.20, green: 0.78, blue: 0.35).opacity(0.4),
+                            lineWidth: 1
+                        )
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.35, green: 0.95, blue: 0.55),
+                                    Color(red: 0.20, green: 0.78, blue: 0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .padding(.top, 36)
+                .padding(.bottom, 20)
+
+                Text("You've Arrived")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+
+                if let name = destination?.name {
+                    Text(name)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .padding(.top, 6)
+                }
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 1)
+                    .padding(.top, 32)
+
+                Button(action: onExit) {
+                    Text("Done")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                }
+                .buttonStyle(ModalButtonStyle())
+            }
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.65))
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.75)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(.horizontal, 40)
+            .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 10)
+            // Tengah layar — tidak perlu Spacer
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 }

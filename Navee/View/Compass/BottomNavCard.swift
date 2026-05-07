@@ -41,31 +41,18 @@ struct BottomNavCard: View {
     }
 
     var body: some View {
-        ZStack {
-            navContent
-                .opacity(finalArrived ? 0 : 1)
-                .offset(y: finalArrived ? 40 : 0)
-                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: finalArrived)
-
-            if finalArrived {
-                arrivalContent
-                    .frame(height: 320)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .frame(height: finalArrived ? 320 : nil)
-        .background(
-            Color(red: 0.11, green: 0.11, blue: 0.12)
-                .clipShape(UnevenRoundedRectangle(
-                    topLeadingRadius: 28,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 28,
-                    style: .continuous
-                ))
-                .ignoresSafeArea(edges: .bottom)
-        )
-        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: finalArrived)
+        navContent
+            .background(
+                Color(red: 0.11, green: 0.11, blue: 0.12)
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 28,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 28,
+                        style: .continuous
+                    ))
+                    .ignoresSafeArea(edges: .bottom)
+            )
     }
 
     // MARK: - Nav Content
@@ -147,50 +134,11 @@ struct BottomNavCard: View {
                 .padding(.top, 16)
             }
 
-            // Trigger modal konfirmasi
             EndNavButton(label: "End Navigate", action: onEndNavigation)
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
                 .padding(.bottom, 20)
         }
-    }
-
-    // MARK: - Arrival Content
-
-    private var arrivalContent: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.07))
-                        .frame(width: 72, height: 72)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .padding(.bottom, 8)
-
-                Text("You've Arrived")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundColor(.white)
-
-                Text(finalDestination?.name ?? "—")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.white.opacity(0.45))
-                    .lineLimit(1)
-                    .padding(.top, 2)
-            }
-
-            Spacer()
-
-            // Langsung exit, tanpa modal
-            EndNavButton(label: "Exit", action: onExit)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
