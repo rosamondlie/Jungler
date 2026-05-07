@@ -13,7 +13,8 @@ struct BottomNavCard: View {
     let currentTarget: Location?
     let finalDestination: Location?
     let distanceToFinal: Double
-    let pointsPassed: Int
+    let currentStep: Int      // index step yang sedang dituju — untuk posisi dot
+    let pointsPassed: Int     // jumlah yang sudah dilewati — untuk label teks
     let totalSteps: Int
     var onEndNavigation: () -> Void
     var onExit: () -> Void
@@ -126,9 +127,10 @@ struct BottomNavCard: View {
 
             if totalSteps > 1 {
                 MRTProgressLine(
-                    currentStep: pointsPassed,
-                    totalSteps:  totalSteps,
-                    activeColor: statusColor
+                    currentStep:  currentStep,   // dot ikut currentStep asli, tidak loncat duluan
+                    pointsPassed: pointsPassed,  // label teks pakai pointsPassed
+                    totalSteps:   totalSteps,
+                    activeColor:  statusColor
                 )
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -183,10 +185,12 @@ struct ModalButtonStyle: ButtonStyle {
 // MARK: - MRT Progress Line
 
 private struct MRTProgressLine: View {
-    let currentStep: Int
+    let currentStep: Int    // index step yang sedang dituju — untuk posisi dot
+    let pointsPassed: Int   // jumlah yang sudah dilewati — untuk label teks
     let totalSteps: Int
     let activeColor: Color
 
+    private let green     = Color(red: 0.20, green: 0.78, blue: 0.35)
     private let maxVisible = 5
 
     private var visibleRange: Range<Int> {
@@ -205,28 +209,28 @@ private struct MRTProgressLine: View {
                 if showLeadingEllipsis { ellipsis }
 
                 ForEach(Array(visibleRange.enumerated()), id: \.offset) { idx, step in
-                    let isDone    = step < currentStep
                     let isCurrent = step == currentStep
+                    let isLast    = step == totalSteps - 1
 
                     if idx > 0 || showLeadingEllipsis {
-                        connectorLine(done: step <= currentStep)
+                        connectorLine(highlighted: step < currentStep)
                     }
 
                     ZStack {
                         if isCurrent {
+                            // Dot yang sedang dituju:
+                            // kuning = checkpoint biasa, hijau = titik terakhir (final destination)
+                            let dotColor = isLast ? green : activeColor
                             Circle()
-                                .fill(activeColor.opacity(0.2))
+                                .fill(dotColor.opacity(0.2))
                                 .frame(width: 14, height: 14)
                             Circle()
-                                .fill(activeColor)
+                                .fill(dotColor)
                                 .frame(width: 7, height: 7)
-                        } else if isDone {
-                            Circle()
-                                .fill(Color.white.opacity(0.5))
-                                .frame(width: 5, height: 5)
                         } else {
+                            // Sudah lewat atau belum sampai — warna normal redup
                             Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                .fill(Color.white.opacity(0.25))
                                 .frame(width: 5, height: 5)
                         }
                     }
@@ -234,36 +238,15 @@ private struct MRTProgressLine: View {
                 }
 
                 if showTrailingEllipsis {
-                    connectorLine(done: false)
+                    connectorLine(highlighted: false)
                     ellipsis
                 }
-
-                connectorLine(done: currentStep >= totalSteps)
-                ZStack {
-                    if currentStep == totalSteps {
-                        Circle()
-                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(0.25))
-                            .frame(width: 14, height: 14)
-                        Circle()
-                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35))
-                            .frame(width: 7, height: 7)
-                    } else if currentStep > totalSteps {
-                        Circle()
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 5, height: 5)
-                    } else {
-                        Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            .frame(width: 5, height: 5)
-                    }
-                }
-                .frame(width: 14, height: 14)
             }
             .fixedSize()
 
             Spacer(minLength: 8)
 
-            Text("\(currentStep) / \(totalSteps) points passed")
+            Text("\(pointsPassed) / \(totalSteps) points passed")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.28))
                 .fixedSize()
@@ -271,9 +254,9 @@ private struct MRTProgressLine: View {
         .frame(height: 14)
     }
 
-    private func connectorLine(done: Bool) -> some View {
+    private func connectorLine(highlighted: Bool) -> some View {
         Rectangle()
-            .fill(done ? Color.white.opacity(0.4) : Color.white.opacity(0.12))
+            .fill(highlighted ? Color.white.opacity(0.35) : Color.white.opacity(0.12))
             .frame(width: 10, height: 1.5)
     }
 

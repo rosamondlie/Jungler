@@ -29,7 +29,7 @@ struct CompassNavigationView: View {
         guard lastIndex > destinationIndex else {
             return [allLocations[destinationIndex]]
         }
-        return (destinationIndex..<lastIndex).reversed().map { allLocations[$0] }
+        return (destinationIndex...lastIndex).reversed().map { allLocations[$0] }
     }
 
     private var currentTarget: Location?    { breadcrumbs[safe: currentStep] }
@@ -58,7 +58,6 @@ struct CompassNavigationView: View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
-            // Compass + status label — selalu tampil
             VStack(spacing: 0) {
                 Spacer()
                 VStack(spacing: 0) {
@@ -69,18 +68,17 @@ struct CompassNavigationView: View {
                     StatusLabel(nav: nav, finalArrived: finalArrived)
                         .padding(.top, 28)
                 }
-
                 Spacer(minLength: 32)
                 Color.clear.frame(height: 200)
             }
 
-            // Bottom nav card — selalu tampil
             BottomNavCard(
                 nav:              nav,
                 finalArrived:     finalArrived,
                 currentTarget:    currentTarget,
                 finalDestination: finalDestination,
                 distanceToFinal:  distanceToFinal,
+                currentStep:      currentStep,
                 pointsPassed:     pointsPassed,
                 totalSteps:       totalSteps,
                 onEndNavigation: {
@@ -91,13 +89,11 @@ struct CompassNavigationView: View {
                 }
             )
 
-            // Checkpoint flash overlay
             if let flash = arrivalFlash, flash == .checkpoint {
                 ArrivalFlashOverlay(kind: flash, opacity: flashOpacity)
                     .allowsHitTesting(false)
             }
 
-            // Arrival overlay — di tengah layar, di atas semua
             if finalArrived {
                 ArrivalOverlay(
                     destination: finalDestination,
@@ -167,7 +163,7 @@ struct CompassNavigationView: View {
     }
 }
 
-// MARK: - Arrival Overlay (tengah layar)
+// MARK: - Arrival Overlay
 
 private struct ArrivalOverlay: View {
     let destination: Location?
@@ -175,12 +171,10 @@ private struct ArrivalOverlay: View {
 
     var body: some View {
         ZStack {
-            // Dim backdrop
             Color.black.opacity(0.55)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            // Card di tengah
             VStack(spacing: 0) {
                 // Checkmark icon
                 ZStack {
@@ -237,12 +231,14 @@ private struct ArrivalOverlay: View {
                     .frame(height: 1)
                     .padding(.top, 32)
 
+                // FIX: .contentShape(Rectangle()) supaya seluruh area button tappable
                 Button(action: onExit) {
                     Text("Done")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(ModalButtonStyle())
             }
@@ -259,7 +255,6 @@ private struct ArrivalOverlay: View {
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .padding(.horizontal, 40)
             .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 10)
-            // Tengah layar — tidak perlu Spacer
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
