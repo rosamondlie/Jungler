@@ -6,12 +6,18 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
-struct Navee: App {
+struct NaveeApp: App {
+
+    @StateObject private var session = TrekSession()
+
     var body: some Scene {
         WindowGroup {
             MainView()
+                .environmentObject(session)
         }
+        .modelContainer(for: Location.self)
     }
 }

@@ -1,24 +1,44 @@
 // LocationModel.swift
-// Model utama yang merepresentasikan satu titik/pin yang disimpan user di peta.
 
 import Foundation
+import SwiftData
 import CoreLocation
 
-struct Location: Identifiable, Hashable {
+@Model
+class Location {
 
-    // MARK: - Properties
-
-    let id: UUID          // ID unik, otomatis dibuat
-    var name: String      // Nama titik, bisa diedit user
-    var coordinate: CLLocationCoordinate2D  // Koordinat GPS (lat & lon)
-    var timestamp: Date   // Waktu pin dibuat
-    var altitude: Double  // Ketinggian dalam meter
-    var emoji: String     // Icon SF Symbol yang dipilih user
-    var notes: String     // Catatan opsional dari user
-
-    // MARK: - Init
+    var id: UUID
+    var name: String
+    var latitude: Double
+    var longitude: Double
+    var timestamp: Date
+    var altitude: Double
+    var emoji: String
+    var notes: String
 
     init(
+        id: UUID = UUID(),
+        name: String,
+        latitude: Double,
+        longitude: Double,
+        timestamp: Date = Date(),
+        altitude: Double,
+        emoji: String,
+        notes: String = ""
+    ) {
+        self.id        = id
+        self.name      = name
+        self.latitude  = latitude
+        self.longitude = longitude
+        self.timestamp = timestamp
+        self.altitude  = altitude
+        self.emoji     = emoji
+        self.notes     = notes
+    }
+
+    // Convenience init yang tetap terima CLLocationCoordinate2D
+    // supaya call site lama tidak perlu banyak berubah
+    convenience init(
         id: UUID = UUID(),
         name: String,
         coordinate: CLLocationCoordinate2D,
@@ -27,23 +47,19 @@ struct Location: Identifiable, Hashable {
         emoji: String,
         notes: String = ""
     ) {
-        self.id         = id
-        self.name       = name
-        self.coordinate = coordinate
-        self.timestamp  = timestamp
-        self.altitude   = altitude
-        self.emoji      = emoji
-        self.notes      = notes
+        self.init(
+            id:        id,
+            name:      name,
+            latitude:  coordinate.latitude,
+            longitude: coordinate.longitude,
+            timestamp: timestamp,
+            altitude:  altitude,
+            emoji:     emoji,
+            notes:     notes
+        )
     }
 
-    // MARK: - Hashable & Equatable
-    // CLLocationCoordinate2D tidak otomatis conform, jadi kita pakai id saja.
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    static func == (lhs: Location, rhs: Location) -> Bool {
-        lhs.id == rhs.id
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 }

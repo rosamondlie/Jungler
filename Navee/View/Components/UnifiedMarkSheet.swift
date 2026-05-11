@@ -32,32 +32,37 @@ struct SmallDetent: CustomPresentationDetent {
 // MARK: - UnifiedMarkSheet
 
 struct UnifiedMarkSheet: View {
-    @Binding var locations:    [Location]
-    @Binding var content:      MarkSheetContent?
-    var userLocation:          CLLocation?
-    var onNavigate:            (Location) -> Void
-    var onSelectOnMap:         (Location) -> Void
 
-    @State private var selectedDetent:    PresentationDetent
-    @State private var isDismissing:      Bool = false
-    @State private var isGoingToEdit:     Bool = false
-    @State private var isExpandingForEdit: Bool = false
-    @State private var locationToDelete: Location? = nil
+    var locations:     [Location]
+    @Binding var content: MarkSheetContent?
+    var userLocation:  CLLocation?
+    var onNavigate:    (Location) -> Void
+    var onSelectOnMap: (Location) -> Void
+    var onDelete:      (Location) -> Void
+    var onUpdate:      () -> Void
 
-    private let spring: Animation = .spring(response: 0.4, dampingFraction: 0.82)
+    @State private var selectedDetent:     PresentationDetent
+    @State private var isDismissing:       Bool      = false
+    @State private var isGoingToEdit:      Bool      = false
+    @State private var isExpandingForEdit: Bool      = false
+    @State private var locationToDelete:   Location? = nil
 
     init(
-        locations:     Binding<[Location]>,
+        locations:     [Location],
         content:       Binding<MarkSheetContent?>,
         userLocation:  CLLocation?,
         onNavigate:    @escaping (Location) -> Void,
-        onSelectOnMap: @escaping (Location) -> Void
+        onSelectOnMap: @escaping (Location) -> Void,
+        onDelete:      @escaping (Location) -> Void,
+        onUpdate:      @escaping () -> Void
     ) {
-        self._locations    = locations
+        self.locations     = locations
         self._content      = content
         self.userLocation  = userLocation
         self.onNavigate    = onNavigate
         self.onSelectOnMap = onSelectOnMap
+        self.onDelete      = onDelete
+        self.onUpdate      = onUpdate
 
         if case .detail = content.wrappedValue {
             self._selectedDetent = State(initialValue: .custom(SmallDetent.self))
@@ -74,8 +79,6 @@ struct UnifiedMarkSheet: View {
                 Color.black.ignoresSafeArea()
                 currentView
             }
-            // Semua transisi konten pakai opacity — tidak ada slide
-            // supaya tidak clash dengan animasi sheet naik/turun
             .animation(.easeInOut(duration: 0.2), value: content)
         }
         .onAppear {
@@ -90,14 +93,11 @@ struct UnifiedMarkSheet: View {
         .preferredColorScheme(.dark)
         .onChange(of: content) { _, newContent in
             if newContent != nil { isDismissing = false }
-            // Jangan sentuh selectedDetent saat dismiss (content = nil)
-            // supaya sheet langsung nutup ke bawah tanpa naik dulu
             guard !isDismissing, let newContent else { return }
             selectedDetent = targetDetent(for: newContent)
         }
         .onChange(of: selectedDetent) { _, newDetent in
             guard !isDismissing, !isGoingToEdit else { return }
-            // Drag naik dari detail → switch ke list
             if case .detail = content, newDetent == .large {
                 content = .list
             }
@@ -105,7 +105,6 @@ struct UnifiedMarkSheet: View {
     }
 
     // MARK: - Current View
-    // Semua case pakai opacity — sheet yang animasi naik/turun, bukan konten slide
 
     @ViewBuilder
     private var currentView: some View {
@@ -128,11 +127,16 @@ struct UnifiedMarkSheet: View {
     // MARK: - Detents
 
     private var availableDetents: Set<PresentationDetent> {
-        // Saat dismiss, hanya [.large] supaya sheet tidak snap naik dulu
-        if isDismissing { return [.large] }
-        // Saat expanding ke edit, lock ke [small, large] supaya iOS
-        // tahu dari mana sheet naik — jangan hapus small dulu sebelum animasi selesai
         if isExpandingForEdit { return [.custom(SmallDetent.self), .large] }
+
+        // Saat dismiss, pastikan selectedDetent yang sedang aktif tetap ada
+        // di dalam set — supaya iOS tidak error dan tidak snap ke atas dulu
+        if isDismissing {
+            return selectedDetent == .custom(SmallDetent.self)
+                ? [.custom(SmallDetent.self), .large]
+                : [.large]
+        }
+
         switch content {
         case .detail: return [.custom(SmallDetent.self), .large]
         default:      return [.large]
@@ -147,11 +151,8 @@ struct UnifiedMarkSheet: View {
     // MARK: - Dismiss
 
     private func dismiss() {
-        isDismissing       = true
-        isGoingToEdit      = false
-        isExpandingForEdit = false
-        selectedDetent     = .large  // sync dulu sebelum availableDetents berubah
-        content            = nil
+        isDismissing = true
+        content      = nil
     }
 
     // MARK: - Case 1: List
@@ -179,11 +180,10 @@ struct UnifiedMarkSheet: View {
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 locationToDelete = location
-//                                locations.removeAll { $0.id == location.id }
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
-                            
+
                             Button {
                                 onSelectOnMap(location)
                                 content        = .edit(location.id)
@@ -203,7 +203,10 @@ struct UnifiedMarkSheet: View {
                 )) {
                     Button("Delete", role: .destructive) {
                         if let loc = locationToDelete {
-                            locations.removeAll { $0.id == loc.id }
+                            if case .detail(let current) = content, current.id == loc.id {
+                                content = nil
+                            }
+                            onDelete(loc)
                             locationToDelete = nil
                         }
                     }
@@ -237,9 +240,6 @@ struct UnifiedMarkSheet: View {
                 onNavigate(live)
             },
             onEdit: {
-                // Lock availableDetents ke [small, large] supaya sheet
-                // bisa naik smooth dari small. Konten ganti bersamaan (fade).
-                // Setelah animasi selesai (~420ms) baru release lock.
                 isGoingToEdit      = true
                 isExpandingForEdit = true
                 selectedDetent     = .large
@@ -264,33 +264,26 @@ struct UnifiedMarkSheet: View {
 
     @ViewBuilder
     private func editView(for id: Location.ID) -> some View {
-        if let index = locations.firstIndex(where: { $0.id == id }) {
+        if let location = locations.first(where: { $0.id == id }) {
             ModifyPin(
-                location:     $locations[index],
+                location:     location,
                 userLocation: userLocation,
                 onSave: {
-                    if let loc = locations.first(where: { $0.id == id }) {
-                        content        = .detail(loc)
-                        selectedDetent = .custom(SmallDetent.self)
-                    } else {
-                        content = .list
-                    }
+                    onUpdate()
+                    content        = .detail(location)
+                    selectedDetent = .custom(SmallDetent.self)
                 },
                 onDelete: {
-                    locations.removeAll { $0.id == id }
-                    content = locations.isEmpty ? nil : .list
+                    onDelete(location)
+                    content = locations.count <= 1 ? nil : .list
                 }
             )
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
-                        if let loc = locations.first(where: { $0.id == id }) {
-                            content        = .detail(loc)
-                            selectedDetent = .custom(SmallDetent.self)
-                        } else {
-                            content = .list
-                        }
+                        content        = .detail(location)
+                        selectedDetent = .custom(SmallDetent.self)
                     } label: {
                         Label("Back", systemImage: "chevron.left")
                     }

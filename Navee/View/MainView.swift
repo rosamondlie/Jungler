@@ -6,8 +6,15 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import SwiftData
 
 struct MainView: View {
+
+    @EnvironmentObject private var session: TrekSession
+    @Environment(\.modelContext) private var context
+
+    @Query(sort: \Location.timestamp)
+    private var locations: [Location]
 
     @State private var mapPosition = MapCameraPosition.region(
         MKCoordinateRegion(
@@ -17,45 +24,44 @@ struct MainView: View {
         )
     )
 
-    @StateObject private var tracker = LocationTracker()
-
-//    @State private var locations:               [Location]        = []
-    @State private var locations: [Location] = [
-        DummyLocations.demoPin
-    ]
-    @State private var isTracking:              Bool              = false
+    @StateObject private var tracker            = LocationTracker()
     @State private var sheetContent:            MarkSheetContent? = nil
     @State private var compassDestinationIndex: Int?              = nil
+    @State private var showEndConfirm:          Bool              = false
+    @State private var mapSnapTask:             Task<Void, Never>? = nil
 
-    private let spring: Animation = .spring(response: 0.4, dampingFraction: 0.82)
-
-    // Tinggi SmallDetent (240) + sedikit breathing room
-    // supaya pin selected tidak ketutupan sheet
     private let detailSheetHeight: CGFloat = 260
 
     var body: some View {
         ZStack {
             mapLayer
 
-            if isTracking {
+            if session.isTracking {
                 TrackingToolbar(
                     pinCount:    locations.count,
                     onShowMarks: { sheetContent = .list },
-                    onAddMark:   addMark
+                    onAddMark:   addMark,
+                    onEndTrek:   { showEndConfirm = true }
                 )
             }
-
-            if !isTracking {
-                StartOverlay { isTracking = true }
-            }
+        }
+        // StartOverlay sebagai fullScreenCover — dijamin truly full screen,
+        // tidak terbatasi ZStack atau safe area parent
+        .fullScreenCover(isPresented: Binding(
+            get: { !session.isTracking },
+            set: { if !$0 { session.start() } }
+        )) {
+            StartOverlay { session.start() }
         }
         .sheet(isPresented: sheetIsPresented) {
             UnifiedMarkSheet(
-                locations:     $locations,
+                locations:     locations,
                 content:       $sheetContent,
                 userLocation:  tracker.userLocation,
                 onNavigate:    handleNavigate,
-                onSelectOnMap: handleSelectOnMap
+                onSelectOnMap: handleSelectOnMap,
+                onDelete:      deletePin,
+                onUpdate:      { }
             )
         }
         .fullScreenCover(isPresented: compassNavigationBinding) {
@@ -67,20 +73,24 @@ struct MainView: View {
                 )
             }
         }
+        .alert("End Trekking?", isPresented: $showEndConfirm) {
+            Button("End", role: .destructive) { endTrekking() }
+            Button("Cancel", role: .cancel)   { }
+        } message: {
+            Text("Your saved points will remain. You'll return to the start screen.")
+        }
     }
 
     // MARK: - Map Layer
 
     private var mapLayer: some View {
-        GeometryReader { geo in
+        GeometryReader { _ in
             Map(position: $mapPosition) {
                 if let userCoord = tracker.userLocation?.coordinate {
                     Annotation("", coordinate: userCoord, anchor: .center) {
-                        FootstepMarker()
-                            .allowsHitTesting(false)
+                        FootstepMarker().allowsHitTesting(false)
                     }
                 }
-
                 ForEach(locations) { location in
                     Annotation("", coordinate: location.coordinate, anchor: .bottom) {
                         DynamicTearDropPin(
@@ -100,25 +110,18 @@ struct MainView: View {
                 MapPitchToggle()
                 MapScaleView()
             }
-            // FIX: geser map ke atas saat detail sheet muncul supaya pin
-            // selected tidak tertutup sheet, seperti behavior Google Maps / Apple Maps.
-            // Tidak ada overlay hitam — map tetap bersih dan interaktif.
             .safeAreaInset(edge: .bottom) {
                 if isDetailVisible {
                     Color.clear.frame(height: detailSheetHeight)
                 }
             }
+            .onMapCameraChange(frequency: .onEnd) { _ in
+                scheduleSnapToDetail()
+            }
             .onAppear {
                 tracker.startTracking()
                 centerMapOnUser()
             }
-            .overlay {
-                if !isTracking {
-                    Color.black.opacity(0.45)
-                        .ignoresSafeArea()
-                }
-            }
-            .allowsHitTesting(isTracking)
         }
     }
 
@@ -148,10 +151,38 @@ struct MainView: View {
         return false
     }
 
+    // MARK: - Auto-Snap
+
+    private func scheduleSnapToDetail() {
+        guard case .detail(let location) = sheetContent else { return }
+        mapSnapTask?.cancel()
+        mapSnapTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(1200))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                centerMap(on: location.coordinate)
+            }
+        }
+    }
+
     // MARK: - Actions
+
+    private func endTrekking() {
+        mapSnapTask?.cancel()
+        sheetContent            = nil
+        compassDestinationIndex = nil
+        tracker.stopTracking()
+        for location in locations { context.delete(location) }
+        session.end()
+    }
 
     private func handlePinTap(_ location: Location) {
         if case .detail(let current) = sheetContent, current.id == location.id {
+            mapSnapTask?.cancel()
             sheetContent = nil
         } else {
             sheetContent = .detail(location)
@@ -160,6 +191,7 @@ struct MainView: View {
     }
 
     private func handleNavigate(_ location: Location) {
+        mapSnapTask?.cancel()
         sheetContent = nil
         if let idx = locations.firstIndex(where: { $0.id == location.id }) {
             compassDestinationIndex = idx
@@ -168,6 +200,28 @@ struct MainView: View {
 
     private func handleSelectOnMap(_ location: Location) {
         centerMap(on: location.coordinate)
+    }
+
+    private func deletePin(_ location: Location) {
+        mapSnapTask?.cancel()
+        if case .detail(let l) = sheetContent, l.id == location.id {
+            sheetContent = nil
+        }
+        context.delete(location)
+    }
+
+    private func addMark() {
+        guard let location = tracker.currentLocation() else {
+            print("[AddMark] Lokasi belum tersedia")
+            return
+        }
+        let pin = Location(
+            name:       "Checkpoint \(locations.count + 1)",
+            coordinate: location.coordinate,
+            altitude:   location.altitude,
+            emoji:      "mappin"
+        )
+        context.insert(pin)
     }
 
     private func centerMap(on coord: CLLocationCoordinate2D) {
@@ -197,21 +251,6 @@ struct MainView: View {
             }
         }
     }
-
-    private func addMark() {
-        guard let location = tracker.currentLocation() else {
-            print("[AddMark] Lokasi belum tersedia")
-            return
-        }
-        let pin = Location(
-            name:       "Checkpoint \(locations.count + 1)",
-            coordinate: location.coordinate,
-            altitude:   location.altitude,
-            emoji:      "mappin",
-            notes:      ""
-        )
-        locations.append(pin)
-    }
 }
 
 // MARK: - Corner Radius Helper
@@ -225,7 +264,6 @@ extension View {
 struct RoundedCorner: Shape {
     var radius: CGFloat
     var corners: UIRectCorner
-
     func path(in rect: CGRect) -> Path {
         let path = UIBezierPath(
             roundedRect: rect,
@@ -235,7 +273,5 @@ struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
-
-// MARK: - Preview
 
 #Preview { MainView() }

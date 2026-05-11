@@ -2,8 +2,6 @@
 //  StartOverlay.swift
 //  Navee
 //
-//  Created by neena on 06/05/26.
-//
 
 import SwiftUI
 
@@ -12,15 +10,24 @@ struct StartOverlay: View {
 
     var body: some View {
         ZStack {
+            // Background saja dalam GeometryReader
             GeometryReader { geo in
                 Image("welcomepage")
                     .resizable()
                     .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
+                    .frame(
+                        width:  geo.size.width  * 1.15,
+                        height: geo.size.height * 1.15
+                    )
+                    .position(
+                        x: geo.size.width  / 2,
+                        y: geo.size.height / 2
+                    )
                     .clipped()
             }
             .ignoresSafeArea()
 
+            // Konten — pure SwiftUI centering, zero offset
             VStack(spacing: 32) {
                 Spacer()
 
@@ -28,11 +35,13 @@ struct StartOverlay: View {
                     .resizable()
                     .scaledToFit()
                     .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity)  // paksa full width simetris
 
                 Text("Drop a trail so you can always\nfind your way back.")
                     .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)  // paksa center simetris
 
                 Button(action: onStart) {
                     HStack(spacing: 8) {
@@ -51,8 +60,9 @@ struct StartOverlay: View {
 
                 Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 0)  // pastikan zero horizontal offset
         }
-        .ignoresSafeArea()
     }
 }
 

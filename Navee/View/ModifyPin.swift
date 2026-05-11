@@ -1,39 +1,44 @@
-//
-//  ModifyPin.swift
-//  Navee
-//
+// ModifyPin.swift
 
 import SwiftUI
+import SwiftData
 import CoreLocation
 
 struct ModifyPin: View {
-    @Binding var location: Location
+
+    // Langsung terima object SwiftData — tidak perlu @Binding
+    var location: Location
     var userLocation: CLLocation?
     var onSave:   () -> Void
     var onDelete: () -> Void
 
-    @State private var draft:            Location
+    @Environment(\.modelContext) private var context
+
+    // Draft lokal untuk edit nama & emoji sebelum di-save
+    @State private var draftName:  String
+    @State private var draftEmoji: String
     @State private var showDeleteAlert = false
 
     private let nameLimit = 20
 
     init(
-        location: Binding<Location>,
+        location: Location,
         userLocation: CLLocation?,
         onSave: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) {
-        self._location    = location
+        self.location     = location
         self.userLocation = userLocation
         self.onSave       = onSave
         self.onDelete     = onDelete
-        self._draft       = State(initialValue: location.wrappedValue)
+        self._draftName   = State(initialValue: location.name)
+        self._draftEmoji  = State(initialValue: location.emoji)
     }
 
     var body: some View {
         List {
             nameSection
-            IconPickerSection(selectedIcon: $draft.emoji)
+            IconPickerSection(selectedIcon: $draftEmoji)
             infoSection
             deleteSection
         }
@@ -45,12 +50,15 @@ struct ModifyPin: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    location = draft
+                    // Tulis perubahan ke SwiftData object
+                    location.name  = draftName
+                    location.emoji = draftEmoji
+                    // SwiftData auto-save — tidak perlu context.save()
                     onSave()
                 } label: {
                     Image(systemName: "checkmark")
                 }
-                .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(draftName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .preferredColorScheme(.dark)
@@ -67,18 +75,18 @@ struct ModifyPin: View {
     private var nameSection: some View {
         Section {
             HStack {
-                TextField("Point name", text: $draft.name)
-                    .onChange(of: draft.name) { _, new in
+                TextField("Point name", text: $draftName)
+                    .onChange(of: draftName) { _, new in
                         if new.count > nameLimit {
-                            draft.name = String(new.prefix(nameLimit))
+                            draftName = String(new.prefix(nameLimit))
                         }
                     }
                 Spacer()
-                Text("\(min(draft.name.count, nameLimit))/\(nameLimit)")
+                Text("\(min(draftName.count, nameLimit))/\(nameLimit)")
                     .font(.caption)
-                    .foregroundStyle(draft.name.count >= nameLimit ? .red : .secondary)
+                    .foregroundStyle(draftName.count >= nameLimit ? .red : .secondary)
                     .monospacedDigit()
-                    .animation(.none, value: draft.name.count)
+                    .animation(.none, value: draftName.count)
             }
         }
     }
@@ -87,10 +95,10 @@ struct ModifyPin: View {
 
     private var infoSection: some View {
         Section {
-            InfoRow(label: "Distance", value: draft.formattedDistance(from: userLocation, suffix: "away"))
-            InfoRow(label: "Altitude", value: "\(Int(draft.altitude)) masl")
-            InfoRow(label: "Coordinates", value: String(format: "%.4f, %.4f", draft.coordinate.latitude, draft.coordinate.longitude))
-            InfoRow(label: "Saved", value: draft.timestamp.relativeFormatted())
+            InfoRow(label: "Distance",    value: location.formattedDistance(from: userLocation, suffix: "away"))
+            InfoRow(label: "Altitude",    value: "\(Int(location.altitude)) masl")
+            InfoRow(label: "Coordinates", value: String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+            InfoRow(label: "Saved",       value: location.timestamp.relativeFormatted())
         }
     }
 
@@ -108,7 +116,7 @@ struct ModifyPin: View {
     }
 }
 
-// MARK: - IconPickerSection
+// MARK: - IconPickerSection (tidak berubah)
 
 private struct IconPickerSection: View {
     @Binding var selectedIcon: String
@@ -124,7 +132,7 @@ private struct IconPickerSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 IconPicker(selectedIcon: $selectedIcon)
                     .padding(.leading, 2)
-                    .padding(.trailing, 32) // trailing lebih lebar supaya icon terakhir keliatan terpotong fade
+                    .padding(.trailing, 32)
                     .background(
                         GeometryReader { geo in
                             Color.clear.onAppear { contentWidth = geo.size.width }
@@ -143,13 +151,11 @@ private struct IconPickerSection: View {
             )
             .overlay(alignment: .leading) {
                 if showLeftFade {
-                    fadeMask(direction: .leading)
-                        .transition(.opacity)
+                    fadeMask(direction: .leading).transition(.opacity)
                 }
             }
             .overlay(alignment: .trailing) {
-                fadeMask(direction: .trailing) // kanan selalu ada sampai mentok
-                    .opacity(showRightFade ? 1 : 0)
+                fadeMask(direction: .trailing).opacity(showRightFade ? 1 : 0)
             }
             .animation(.easeInOut(duration: 0.2), value: showLeftFade)
             .animation(.easeInOut(duration: 0.2), value: showRightFade)
@@ -158,14 +164,11 @@ private struct IconPickerSection: View {
 
     private func fadeMask(direction: UnitPoint) -> some View {
         LinearGradient(
-            colors: [
-                Color(UIColor.secondarySystemGroupedBackground),
-                .clear
-            ],
+            colors: [Color(UIColor.secondarySystemGroupedBackground), .clear],
             startPoint: direction,
             endPoint: direction == .leading ? .trailing : .leading
         )
-        .frame(width: 56) // lebih lebar supaya lebih kelihatan
+        .frame(width: 56)
         .allowsHitTesting(false)
     }
 }
@@ -173,19 +176,26 @@ private struct IconPickerSection: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationStack {
+    // Preview tidak bisa pakai @Model tanpa container
+    // Buat in-memory container khusus preview
+    let config    = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Location.self, configurations: config)
+    let sample    = Location(
+        name:       "Point 1",
+        coordinate: .init(latitude: -6.2, longitude: 106.8166),
+        altitude:   12,
+        emoji:      "flame.fill"
+    )
+    container.mainContext.insert(sample)
+
+    return NavigationStack {
         ModifyPin(
-            location: .constant(Location(
-                name:       "Point 1",
-                coordinate: .init(latitude: -6.2, longitude: 106.8166),
-                altitude:   12,
-                emoji:      "flame.fill",
-                notes:      ""
-            )),
+            location:     sample,
             userLocation: CLLocation(latitude: -6.2012, longitude: 106.8154),
-            onSave:   {},
-            onDelete: {}
+            onSave:       {},
+            onDelete:     {}
         )
     }
+    .modelContainer(container)
     .preferredColorScheme(.dark)
 }
