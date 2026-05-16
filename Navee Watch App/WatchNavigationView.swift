@@ -16,13 +16,12 @@ struct WatchNavigationView: View {
     let destinationIndex: Int
     var onEndNavigation: () -> Void
 
-    @StateObject private var tracker  = WatchLocationTracker()
-    @State private var nav            = NavState()
-    @State private var currentStep    = 0
-    @State private var wasArrived     = false
-    @State private var showEndConfirm = false
+    @StateObject private var tracker        = WatchLocationTracker()
+    @State private var nav                  = NavState()
+    @State private var currentStep          = 0
+    @State private var wasArrived           = false
+    @State private var showEndConfirm       = false
     @State private var finalArrivedSticky   = false
-
     @State private var isProcessingArrival  = false
     @State private var showCheckpointFlash  = false
 
@@ -71,68 +70,86 @@ struct WatchNavigationView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
 
                 } else {
-                    VStack(spacing: 8) {
+                    TabView {
 
-                        // Nama tujuan
-                        if let target = currentTarget {
-                            Text(target.name)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.6)
-                                .padding(.horizontal, 8)
-                                .frame(height: h * 0.10)
-                        }
+                        // ── Page 1: Kompas utama ──
+                        VStack(spacing: 8) {
+                            if let target = currentTarget {
+                                Text(target.name)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .minimumScaleFactor(0.5)
+                                    .padding(.horizontal, 8)
+                                    .frame(height: h * 0.10)
+                            }
 
-                        // Kompas
-                        WatchCompassView(nav: nav)
-                            .frame(width: compassSize, height: compassSize)
-                            .padding(.horizontal, 8)
+                            WatchCompassView(nav: nav)
+                                .frame(width: compassSize, height: compassSize)
 
-                        // Jarak + arah + step — 1 baris
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(formattedDistance)
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                            Text(cardinalDirection)
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                .foregroundColor(
-                                    nav.isOnTrack
-                                        ? Color(red: 0.2, green: 1, blue: 0.5)
-                                        : .white.opacity(0.5)
-                                )
-                            if totalSteps > 1 {
-                                Text("·")
-                                    .foregroundColor(.white.opacity(0.3))
-                                    .font(.system(size: 13))
-                                Text("Step \(currentStep + 1)/\(totalSteps)")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.4))
+                            // Jarak + arah — 1 baris
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(formattedDistance)
+                                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                Text(cardinalDirection)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundColor(
+                                        nav.isOnTrack
+                                            ? Color(red: 0.2, green: 1, blue: 0.5)
+                                            : .white.opacity(0.5)
+                                    )
+                            }
+                            .frame(height: h * 0.10)
+
+                            // Step + swipe hint — rapat
+                            VStack(spacing: 4) {
+                                if totalSteps > 1 {
+                                    Text("Step \(currentStep + 1)/\(totalSteps)")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.4))
+                                }
+                                Text("swipe untuk end →")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.white.opacity(0.2))
                             }
                         }
-                        .frame(height: h * 0.10)
+                        .frame(width: w, height: h)
 
-//                        Spacer(minLength: 12)
+                        // ── Page 2: End navigation ──
+                        VStack(spacing: 16) {
+                            Spacer()
 
-                        // Tombol End
-                        Button {
-                            showEndConfirm = true
-                        } label: {
-                            Text("End")
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 36))
+                                .foregroundColor(Color(red: 0.85, green: 0.15, blue: 0.15))
+
+                            Text("End Navigation?")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                        .fill(Color(red: 0.85, green: 0.15, blue: 0.15))
-                                )
+
+                            Button {
+                                showEndConfirm = true
+                            } label: {
+                                Text("End")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 32)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                            .fill(Color(red: 0.85, green: 0.15, blue: 0.15))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+
+                            Spacer()
                         }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 10)
+                        .frame(width: w, height: h)
                     }
-                    .frame(width: w, height: h)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
 
                     // Checkpoint flash overlay
                     if showCheckpointFlash {
@@ -200,10 +217,10 @@ struct WatchNavigationView: View {
     }
 
     private func checkArrival() {
-        guard !finalArrivedSticky      else { return }
-        guard nav.hasArrived           else { return }
-        guard !isLastStep              else { return }
-        guard !isProcessingArrival     else { return }
+        guard !finalArrivedSticky  else { return }
+        guard nav.hasArrived       else { return }
+        guard !isLastStep          else { return }
+        guard !isProcessingArrival else { return }
 
         isProcessingArrival = true
         WatchHapticEngine.checkpoint()
