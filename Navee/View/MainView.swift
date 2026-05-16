@@ -45,8 +45,6 @@ struct MainView: View {
                 )
             }
         }
-        // StartOverlay sebagai fullScreenCover — dijamin truly full screen,
-        // tidak terbatasi ZStack atau safe area parent
         .fullScreenCover(isPresented: Binding(
             get: { !session.isTracking },
             set: { if !$0 { session.start() } }
@@ -78,6 +76,14 @@ struct MainView: View {
             Button("Cancel", role: .cancel)   { }
         } message: {
             Text("Your saved points will remain. You'll return to the start screen.")
+        }
+        // ✅ Sync ke Watch saat app muncul
+        .onAppear {
+            PhoneSessionManager.shared.syncSavedLocations(locations)
+        }
+        // ✅ Sync ke Watch setiap kali lokasi berubah (tambah / hapus pin)
+        .onChange(of: locations) { _, newLocations in
+            PhoneSessionManager.shared.syncSavedLocations(newLocations)
         }
     }
 

@@ -6,19 +6,80 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1BF869552FB8B9270088D39B /* naveeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 1BF8694B2FB8B9270088D39B /* naveeWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1BF869532FB8B9270088D39B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1F5CAD412FA43794003790DF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BF8694A2FB8B9270088D39B;
+			remoteInfo = "naveeWatch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1BF869562FB8B9270088D39B /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				1BF869552FB8B9270088D39B /* naveeWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		1BF8694B2FB8B9270088D39B /* naveeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "naveeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F5CAD492FA43794003790DF /* Navee.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Navee.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1BF8695B2FB8BA530088D39B /* Exceptions for "Navee" folder in "naveeWatch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/LocationTracker.swift,
+				Model/LocationAndDistance.swift,
+				Model/LocationModel.swift,
+				Model/NavState.swift,
+				SharedNavData.swift,
+				Utilities/ArrayAndSafeSubscript.swift,
+				Utilities/CLLocationCoordinate2DAndNavigation.swift,
+				Utilities/DateAndFormatting.swift,
+			);
+			target = 1BF8694A2FB8B9270088D39B /* naveeWatch Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		1BF8694C2FB8B9270088D39B /* Navee Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Navee Watch App";
+			sourceTree = "<group>";
+		};
 		1F5CAD4B2FA43794003790DF /* Navee */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1BF8695B2FB8BA530088D39B /* Exceptions for "Navee" folder in "naveeWatch Watch App" target */,
+			);
 			path = Navee;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1BF869482FB8B9270088D39B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F5CAD462FA43794003790DF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				1F5CAD4B2FA43794003790DF /* Navee */,
+				1BF8694C2FB8B9270088D39B /* Navee Watch App */,
 				1F5CAD4A2FA43794003790DF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				1F5CAD492FA43794003790DF /* Navee.app */,
+				1BF8694B2FB8B9270088D39B /* naveeWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +111,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1BF8694A2FB8B9270088D39B /* naveeWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BF869592FB8B9270088D39B /* Build configuration list for PBXNativeTarget "naveeWatch Watch App" */;
+			buildPhases = (
+				1BF869472FB8B9270088D39B /* Sources */,
+				1BF869482FB8B9270088D39B /* Frameworks */,
+				1BF869492FB8B9270088D39B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1BF8694C2FB8B9270088D39B /* Navee Watch App */,
+			);
+			name = "naveeWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "naveeWatch Watch App";
+			productReference = 1BF8694B2FB8B9270088D39B /* naveeWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		1F5CAD482FA43794003790DF /* Navee */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1F5CAD542FA43795003790DF /* Build configuration list for PBXNativeTarget "Navee" */;
@@ -55,10 +140,12 @@
 				1F5CAD452FA43794003790DF /* Sources */,
 				1F5CAD462FA43794003790DF /* Frameworks */,
 				1F5CAD472FA43794003790DF /* Resources */,
+				1BF869562FB8B9270088D39B /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				1BF869542FB8B9270088D39B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1F5CAD4B2FA43794003790DF /* Navee */,
@@ -77,9 +164,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
-				LastUpgradeCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					1BF8694A2FB8B9270088D39B = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					1F5CAD482FA43794003790DF = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -100,11 +190,19 @@
 			projectRoot = "";
 			targets = (
 				1F5CAD482FA43794003790DF /* Navee */,
+				1BF8694A2FB8B9270088D39B /* naveeWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1BF869492FB8B9270088D39B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F5CAD472FA43794003790DF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +213,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1BF869472FB8B9270088D39B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F5CAD452FA43794003790DF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +229,79 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		1BF869542FB8B9270088D39B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BF8694A2FB8B9270088D39B /* naveeWatch Watch App */;
+			targetProxy = 1BF869532FB8B9270088D39B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		1BF869572FB8B9270088D39B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = naveeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = jungler.app1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jungler.app1.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		1BF869582FB8B9270088D39B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = naveeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = jungler.app1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jungler.app1.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 		1F5CAD522FA43795003790DF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -160,6 +337,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 9DBRSLWNN9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -183,6 +361,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -223,6 +402,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 9DBRSLWNN9;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -239,6 +419,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -251,7 +432,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9DBRSLWNN9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app uses your location to show your current position, save places, and provide directions.";
@@ -285,7 +465,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9DBRSLWNN9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app uses your location to show your current position, save places, and provide directions.";
@@ -315,6 +494,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1BF869592FB8B9270088D39B /* Build configuration list for PBXNativeTarget "naveeWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1BF869572FB8B9270088D39B /* Debug */,
+				1BF869582FB8B9270088D39B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1F5CAD442FA43794003790DF /* Build configuration list for PBXProject "Navee" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

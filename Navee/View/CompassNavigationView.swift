@@ -11,7 +11,8 @@ struct CompassNavigationView: View {
     let destinationIndex: Int
     var onEndNavigation: () -> Void
 
-    @StateObject private var tracker = LocationTracker()
+    @StateObject private var tracker      = LocationTracker()
+    @StateObject private var phoneSession = PhoneSessionManager.shared  // ✅ terima sinyal dari Watch
 
     @State private var nav               = NavState()
     @State private var currentStep       = 0
@@ -20,6 +21,9 @@ struct CompassNavigationView: View {
     @State private var wasOnTrack        = true
     @State private var wasArrived        = false
     @State private var showEndConfirm    = false
+
+    // ✅ Sticky flag — sama seperti di Watch, tidak bisa balik false meski GPS goyang
+    @State private var finalArrivedSticky = false
 
     // MARK: - Computed Properties
 
@@ -36,7 +40,10 @@ struct CompassNavigationView: View {
     private var finalDestination: Location? { breadcrumbs.last }
     private var totalSteps: Int             { breadcrumbs.count }
     private var isLastStep: Bool            { currentStep >= totalSteps - 1 }
-    private var finalArrived: Bool          { nav.hasArrived && isLastStep }
+
+    // Hanya untuk men-trigger sticky flag — tidak dipakai langsung di UI
+    private var finalArrivedComputed: Bool  { nav.hasArrived && isLastStep }
+
     private var pointsPassed: Int           { nav.hasArrived ? currentStep + 1 : currentStep }
 
     private var distanceToFinal: Double {
@@ -65,7 +72,7 @@ struct CompassNavigationView: View {
                         CompassView(nav: nav, destination: target)
                             .padding(.horizontal, 32)
                     }
-                    StatusLabel(nav: nav, finalArrived: finalArrived)
+                    StatusLabel(nav: nav, finalArrived: finalArrivedSticky)
                         .padding(.top, 28)
                 }
                 Spacer(minLength: 32)
@@ -74,7 +81,7 @@ struct CompassNavigationView: View {
 
             BottomNavCard(
                 nav:              nav,
-                finalArrived:     finalArrived,
+                finalArrived:     finalArrivedSticky,
                 currentTarget:    currentTarget,
                 finalDestination: finalDestination,
                 distanceToFinal:  distanceToFinal,
@@ -85,7 +92,7 @@ struct CompassNavigationView: View {
                     showEndConfirm = true
                 },
                 onExit: {
-                    onEndNavigation()
+                    handleDone()
                 }
             )
 
@@ -94,23 +101,33 @@ struct CompassNavigationView: View {
                     .allowsHitTesting(false)
             }
 
-            if finalArrived {
+            // ✅ Pakai finalArrivedSticky — tidak hilang sendiri meski GPS goyang
+            if finalArrivedSticky {
                 ArrivalOverlay(
                     destination: finalDestination,
-                    onExit: onEndNavigation
+                    onExit: handleDone
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: finalArrived)
+        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: finalArrivedSticky)
         .alert("End Navigation?", isPresented: $showEndConfirm) {
-            Button("End", role: .destructive) { onEndNavigation() }
+            Button("End", role: .destructive) { handleDone() }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Your current navigation session will be stopped.")
         }
-        .onAppear    { tracker.startTracking() }
-        .onDisappear { tracker.stopTracking()  }
+        .onAppear {
+            tracker.startTracking()
+            PhoneSessionManager.shared.startNavigation(
+                locations: allLocations,
+                destinationIndex: destinationIndex
+            )
+        }
+        .onDisappear {
+            tracker.stopTracking()
+            PhoneSessionManager.shared.stopNavigation()
+        }
         .onChange(of: tracker.heading) { _, heading in
             nav.userHeading = heading
             if !nav.hasValidHeading { nav.hasValidHeading = true }
@@ -128,9 +145,27 @@ struct CompassNavigationView: View {
             if arrived && !wasArrived { HapticEngine.arrived() }
             wasArrived = arrived
         }
+        // ✅ Set sticky flag saat computed value jadi true — tidak pernah di-unset dari sini
+        .onChange(of: finalArrivedComputed) { _, arrived in
+            if arrived { finalArrivedSticky = true }
+        }
+        // ✅ Terima sinyal dari Watch (user pencet Done di jam) → stop di iPhone juga
+        .onChange(of: phoneSession.shouldStopNavigation) { _, should in
+            if should {
+                phoneSession.shouldStopNavigation = false
+                handleDone()
+            }
+        }
     }
 
     // MARK: - Actions
+
+    /// Entry point tunggal untuk mengakhiri navigasi — dari Done, End, atau sinyal Watch
+    private func handleDone() {
+        tracker.stopTracking()
+        PhoneSessionManager.shared.stopNavigation()
+        onEndNavigation()
+    }
 
     private func updateNav(from location: CLLocation?) {
         guard let coord = location?.coordinate, let target = currentTarget else { return }
@@ -139,6 +174,7 @@ struct CompassNavigationView: View {
     }
 
     private func checkArrival() {
+        guard !finalArrivedSticky else { return }  // sudah final, jangan proses checkpoint
         guard nav.hasArrived else { return }
         guard !isLastStep else { return }
         triggerFlash(.checkpoint) {
@@ -176,7 +212,6 @@ private struct ArrivalOverlay: View {
                 .allowsHitTesting(false)
 
             VStack(spacing: 0) {
-                // Checkmark icon
                 ZStack {
                     Circle()
                         .fill(
@@ -231,7 +266,6 @@ private struct ArrivalOverlay: View {
                     .frame(height: 1)
                     .padding(.top, 32)
 
-                // FIX: .contentShape(Rectangle()) supaya seluruh area button tappable
                 Button(action: onExit) {
                     Text("Done")
                         .font(.system(size: 17, weight: .semibold))
