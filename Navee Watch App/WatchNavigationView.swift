@@ -14,6 +14,7 @@ import WatchConnectivity
 struct WatchNavigationView: View {
     let allLocations: [WatchLocation]
     let destinationIndex: Int
+    let initialStep: Int            // ← baru: untuk takeover dari HP
     var onEndNavigation: () -> Void
 
     @StateObject private var tracker        = WatchLocationTracker()
@@ -88,7 +89,6 @@ struct WatchNavigationView: View {
                             WatchCompassView(nav: nav)
                                 .frame(width: compassSize, height: compassSize)
 
-                            // Jarak + arah — 1 baris
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text(formattedDistance)
                                     .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -103,7 +103,6 @@ struct WatchNavigationView: View {
                             }
                             .frame(height: h * 0.10)
 
-                            // Step + swipe hint — rapat
                             VStack(spacing: 4) {
                                 if totalSteps > 1 {
                                     Text("Step \(currentStep + 1)/\(totalSteps)")
@@ -151,7 +150,6 @@ struct WatchNavigationView: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
 
-                    // Checkpoint flash overlay
                     if showCheckpointFlash {
                         WatchCheckpointFlash()
                             .transition(.opacity)
@@ -165,6 +163,10 @@ struct WatchNavigationView: View {
         .animation(.easeInOut(duration: 0.2), value: showCheckpointFlash)
         .onAppear {
             tracker.startTracking()
+            // Mulai dari step yang tepat (untuk takeover dari HP)
+            if initialStep > 0 && initialStep < breadcrumbs.count {
+                currentStep = initialStep
+            }
         }
         .onDisappear {
             tracker.stopTracking()
@@ -181,6 +183,10 @@ struct WatchNavigationView: View {
         .onChange(of: finalArrivedComputed) { _, arrived in
             if arrived { finalArrivedSticky = true }
         }
+        // ← Baru: broadcast step ke HP setiap kali step berubah
+        .onChange(of: currentStep) { _, step in
+            WatchSessionManager.shared.broadcastCurrentStep(step)
+        }
         .alert("End Navigation?", isPresented: $showEndConfirm) {
             Button("End", role: .destructive) { handleDone() }
             Button("Cancel", role: .cancel) { }
@@ -193,18 +199,7 @@ struct WatchNavigationView: View {
 
     private func handleDone() {
         tracker.stopTracking()
-        notifyPhoneNavigationEnded()
-        onEndNavigation()
-    }
-
-    private func notifyPhoneNavigationEnded() {
-        guard WCSession.default.activationState == .activated else { return }
-        let msg: [String: Any] = ["stopNavigation": true]
-        if WCSession.default.isReachable {
-            WCSession.default.sendMessage(msg, replyHandler: nil, errorHandler: nil)
-        } else {
-            try? WCSession.default.updateApplicationContext(msg)
-        }
+        onEndNavigation()   // ContentView.onEndNavigation memanggil session.endNavigation()
     }
 
     // MARK: - Nav Logic

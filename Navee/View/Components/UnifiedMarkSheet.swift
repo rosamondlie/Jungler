@@ -33,13 +33,14 @@ struct SmallDetent: CustomPresentationDetent {
 
 struct UnifiedMarkSheet: View {
 
-    var locations:     [Location]
-    @Binding var content: MarkSheetContent?
-    var userLocation:  CLLocation?
-    var onNavigate:    (Location) -> Void
-    var onSelectOnMap: (Location) -> Void
-    var onDelete:      (Location) -> Void
-    var onUpdate:      () -> Void
+    var locations:         [Location]
+    @Binding var content:  MarkSheetContent?
+    var userLocation:      CLLocation?
+    var isWatchNavigating: Bool = false          // ← tambahan
+    var onNavigate:        (Location) -> Void
+    var onSelectOnMap:     (Location) -> Void
+    var onDelete:          (Location) -> Void
+    var onUpdate:          () -> Void
 
     @State private var selectedDetent:     PresentationDetent
     @State private var isDismissing:       Bool      = false
@@ -48,21 +49,23 @@ struct UnifiedMarkSheet: View {
     @State private var locationToDelete:   Location? = nil
 
     init(
-        locations:     [Location],
-        content:       Binding<MarkSheetContent?>,
-        userLocation:  CLLocation?,
-        onNavigate:    @escaping (Location) -> Void,
-        onSelectOnMap: @escaping (Location) -> Void,
-        onDelete:      @escaping (Location) -> Void,
-        onUpdate:      @escaping () -> Void
+        locations:         [Location],
+        content:           Binding<MarkSheetContent?>,
+        userLocation:      CLLocation?,
+        isWatchNavigating: Bool = false,         // ← tambahan
+        onNavigate:        @escaping (Location) -> Void,
+        onSelectOnMap:     @escaping (Location) -> Void,
+        onDelete:          @escaping (Location) -> Void,
+        onUpdate:          @escaping () -> Void
     ) {
-        self.locations     = locations
-        self._content      = content
-        self.userLocation  = userLocation
-        self.onNavigate    = onNavigate
-        self.onSelectOnMap = onSelectOnMap
-        self.onDelete      = onDelete
-        self.onUpdate      = onUpdate
+        self.locations         = locations
+        self._content          = content
+        self.userLocation      = userLocation
+        self.isWatchNavigating = isWatchNavigating
+        self.onNavigate        = onNavigate
+        self.onSelectOnMap     = onSelectOnMap
+        self.onDelete          = onDelete
+        self.onUpdate          = onUpdate
 
         if case .detail = content.wrappedValue {
             self._selectedDetent = State(initialValue: .custom(SmallDetent.self))
@@ -129,8 +132,6 @@ struct UnifiedMarkSheet: View {
     private var availableDetents: Set<PresentationDetent> {
         if isExpandingForEdit { return [.custom(SmallDetent.self), .large] }
 
-        // Saat dismiss, pastikan selectedDetent yang sedang aktif tetap ada
-        // di dalam set — supaya iOS tidak error dan tidak snap ke atas dulu
         if isDismissing {
             return selectedDetent == .custom(SmallDetent.self)
                 ? [.custom(SmallDetent.self), .large]
@@ -233,8 +234,9 @@ struct UnifiedMarkSheet: View {
         let live = locations.first(where: { $0.id == location.id }) ?? location
 
         return BottomPinDetailView(
-            location:     live,
-            userLocation: userLocation,
+            location:          live,
+            userLocation:      userLocation,
+            isWatchNavigating: isWatchNavigating,   // ← tambahan
             onNavigate: {
                 dismiss()
                 onNavigate(live)

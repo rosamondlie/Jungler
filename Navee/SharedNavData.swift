@@ -7,10 +7,16 @@
 
 import CoreLocation
 
-// Lightweight struct untuk transfer data iOS ↔ Watch
-// (Location pakai @Model SwiftData, tidak bisa di-share langsung ke Watch)
+// MARK: - Navigation Owner
 
-struct WatchLocation: Codable, Identifiable {
+/// Satu perangkat saja yang boleh navigasi pada satu waktu.
+enum NavigationOwner: String, Codable, Equatable {
+    case phone, watch, none
+}
+
+// MARK: - WatchLocation
+
+struct WatchLocation: Codable, Identifiable, Equatable {
     let id: UUID
     let name: String
     let latitude: Double
@@ -24,7 +30,11 @@ struct WatchLocation: Codable, Identifiable {
     }
 }
 
-struct WatchNavData: Codable {
+// MARK: - WatchNavData
+
+struct WatchNavData: Codable, Equatable {
     let locations: [WatchLocation]
     let destinationIndex: Int
+    var currentStep: Int        // breadcrumb step yang sedang aktif
+    var owner: NavigationOwner  // siapa yang sedang memegang sesi
 }

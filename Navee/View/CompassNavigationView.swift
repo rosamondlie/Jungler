@@ -145,6 +145,10 @@ struct CompassNavigationView: View {
             if arrived && !wasArrived { HapticEngine.arrived() }
             wasArrived = arrived
         }
+        // ✅ Sync currentStep ke Watch setiap kali user maju ke checkpoint berikutnya
+        .onChange(of: currentStep) { _, step in
+            PhoneSessionManager.shared.updateCurrentStep(step)
+        }
         // ✅ Set sticky flag saat computed value jadi true — tidak pernah di-unset dari sini
         .onChange(of: finalArrivedComputed) { _, arrived in
             if arrived { finalArrivedSticky = true }

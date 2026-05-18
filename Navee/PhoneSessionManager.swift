@@ -11,49 +11,114 @@ import Combine
 class PhoneSessionManager: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = PhoneSessionManager()
 
-    // ✅ iPhone observe ini — kalau Watch selesai navigasi, iPhone ikut berhenti
+    // MARK: - Published State
+
     @Published var shouldStopNavigation: Bool = false
+    @Published var navigationOwner: NavigationOwner = .none
+    @Published var watchNavData: WatchNavData? = nil
+
+    // MARK: - Private
+
+    private var lastNavData: WatchNavData?
+    private var ctxStore: [String: Any] = [:]
 
     private override init() {
         super.init()
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
+        clearStaleContext() // ← bersihkan context lama saat launch
     }
 
     // MARK: - Public API
 
-    /// Panggil saat user mulai navigasi di iPhone → Watch ikut navigasi
     func startNavigation(locations: [Location], destinationIndex: Int) {
-        let watchLocations = locations.map { WatchLocation(from: $0) }
-        let navData = WatchNavData(locations: watchLocations,
-                                   destinationIndex: destinationIndex)
+        let watchLocs = locations.map { WatchLocation(from: $0) }
+        let navData = WatchNavData(
+            locations: watchLocs,
+            destinationIndex: destinationIndex,
+            currentStep: 0,
+            owner: .phone
+        )
+        lastNavData     = navData
+        navigationOwner = .phone
+
         guard let data = try? JSONEncoder().encode(navData) else { return }
-        send(["navigationData": data])
+        pushContext(["navStatus": "phone_navigating", "navigationData": data])
+        sendLive(["navStatus": "phone_navigating", "navigationData": data])
     }
 
-    /// Panggil saat navigasi selesai/dibatalkan di iPhone → beritahu Watch
+    func updateCurrentStep(_ step: Int) {
+        guard var nav = lastNavData else { return }
+        nav = WatchNavData(
+            locations: nav.locations,
+            destinationIndex: nav.destinationIndex,
+            currentStep: step,
+            owner: .phone
+        )
+        lastNavData = nav
+        guard let data = try? JSONEncoder().encode(nav) else { return }
+        pushContext(["navStatus": "phone_navigating", "navigationData": data])
+    }
+
     func stopNavigation() {
-        send(["stopNavigation": true])
+        guard navigationOwner == .phone else { return }
+        navigationOwner = .none
+        lastNavData     = nil
+        pushContext(["navStatus": "idle"])
+        sendLive(["stopNavigation": true])
     }
 
-    /// Sync semua saved locations ke Watch untuk navigasi standalone.
-    /// Panggil saat app launch atau saat user tambah/hapus lokasi.
+    /// Panggil saat end trekking — stop Watch meski Watch yang sedang navigasi.
+    func stopAll() {
+        lastNavData     = nil
+        navigationOwner = .none
+        watchNavData    = nil
+        pushContext(["navStatus": "idle"])
+        sendLive(["stopNavigation": true])
+        var fallbackCtx = ctxStore
+        fallbackCtx["stopNavigation"] = true
+        try? WCSession.default.updateApplicationContext(fallbackCtx)
+    }
+
+    func takeOverFromWatch() {
+        watchNavData    = nil
+        navigationOwner = .none
+        sendLive(["takeOver": "phone"])
+        try? WCSession.default.updateApplicationContext(["takeOver": "phone"])
+    }
+
     func syncSavedLocations(_ locations: [Location]) {
-        let watchLocations = locations.map { WatchLocation(from: $0) }
-        guard let data = try? JSONEncoder().encode(watchLocations) else { return }
-        try? WCSession.default.updateApplicationContext(["savedLocations": data])
+        let watchLocs = locations.map { WatchLocation(from: $0) }
+        guard let data = try? JSONEncoder().encode(watchLocs) else { return }
+        pushContext(["savedLocations": data])
     }
 
-    // MARK: - Private
+    // MARK: - Context Store
 
-    private func send(_ message: [String: Any]) {
-        if WCSession.default.isReachable {
-            WCSession.default.sendMessage(message, replyHandler: nil) { error in
-                print("[PhoneSession] sendMessage error: \(error.localizedDescription)")
-            }
-        } else {
-            try? WCSession.default.updateApplicationContext(message)
+    private func clearStaleContext() {
+        ctxStore = [:]
+        try? WCSession.default.updateApplicationContext([
+            "navStatus": "idle",
+            "stopNavigation": true
+        ])
+    }
+
+    private func pushContext(_ updates: [String: Any]) {
+        updates.forEach { ctxStore[$0.key] = $0.value }
+        if let status = ctxStore["navStatus"] as? String, status == "idle" {
+            ctxStore.removeValue(forKey: "navigationData")
+        }
+        try? WCSession.default.updateApplicationContext(ctxStore)
+    }
+
+    // MARK: - Messaging
+
+    private func sendLive(_ message: [String: Any]) {
+        guard WCSession.default.activationState == .activated,
+              WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage(message, replyHandler: nil) { error in
+            print("[PhoneSession] sendMessage error: \(error.localizedDescription)")
         }
     }
 
@@ -69,7 +134,6 @@ class PhoneSessionManager: NSObject, ObservableObject, WCSessionDelegate {
         WCSession.default.activate()
     }
 
-    /// ✅ Terima pesan dari Watch — misal Watch pencet Done saat sudah tiba
     func session(_ session: WCSession,
                  didReceiveMessage message: [String: Any]) {
         handleFromWatch(message)
@@ -80,16 +144,40 @@ class PhoneSessionManager: NSObject, ObservableObject, WCSessionDelegate {
         handleFromWatch(context)
     }
 
-    private func handleFromWatch(_ message: [String: Any]) {
-        if let stop = message["stopNavigation"] as? Bool, stop {
+    // MARK: - Handle Incoming (dari Watch)
+
+    private func handleFromWatch(_ msg: [String: Any]) {
+        if let stop = msg["stopNavigation"] as? Bool, stop {
+            DispatchQueue.main.async {
+                if self.navigationOwner == .watch {
+                    self.navigationOwner = .none
+                    self.watchNavData    = nil
+                }
+            }
+            return
+        }
+
+        if let takeOver = msg["takeOver"] as? String, takeOver == "watch" {
             DispatchQueue.main.async {
                 self.shouldStopNavigation = true
+                self.navigationOwner      = .watch
+            }
+            return
+        }
+
+        if let data = msg["navData"] as? Data,
+           let navData = try? JSONDecoder().decode(WatchNavData.self, from: data),
+           navData.owner == .watch {
+            DispatchQueue.main.async {
+                guard self.navigationOwner != .phone else { return }
+                self.watchNavData    = navData
+                self.navigationOwner = .watch
             }
         }
     }
 }
 
-// MARK: - WatchLocation convenience init dari Location (iPhone model)
+// MARK: - WatchLocation convenience init
 
 extension WatchLocation {
     init(from location: Location) {
